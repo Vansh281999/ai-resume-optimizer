@@ -1,81 +1,64 @@
 # AI Career Intelligence Platform
 
-## Project Structure
+An end-to-end career intelligence system that scores resumes against job descriptions, matches candidates to roles, generates interview prep content, and tracks career growth with analytics.
 
-```
-src/ai_career_platform/
-├── __init__.py
-├── config.py
-├── models.py
-├── security.py
-├── ai_providers/
-│   ├── __init__.py
-│   ├── base.py
-│   ├── factory.py
-│   ├── openai_provider.py
-│   ├── anthropic_provider.py
-│   ├── gemini_provider.py
-│   └── ollama_provider.py
-├── core/
-│   ├── __init__.py
-│   ├── ats_engine.py
-│   └── job_matcher.py
-├── interview/
-│   ├── __init__.py
-│   └── interview_module.py
-├── career/
-│   ├── __init__.py
-│   └── career_dashboard.py
-├── analytics/
-│   ├── __init__.py
-│   ├── analytics_tracker.py
-│   └── job_process_tracker.py
-└── utils/
-    ├── __init__.py
-    ├── text.py
-    └── validators.py
+## Features
 
-src/resume_crew/
-├── __init__.py
-├── main.py
-├── crew.py
-├── models.py
-├── config/
-│   ├── agents.yaml
-│   └── tasks.yaml
-└── tools/
-    └── custom_tool.py
-
-tests/
-├── test_ats_engine.py
-├── test_job_matcher.py
-├── test_interview_module.py
-├── test_career_dashboard.py
-├── test_analytics_tracker.py
-└── test_security.py
-```
+- ATS Scoring Engine (`ai_career_platform.core.ats_engine`)
+- Resume vs Job Matching (`ai_career_platform.core.job_matcher`)
+- Interview Preparation Module (`ai_career_platform.interview.interview_module`)
+- Career Growth Dashboard (`ai_career_platform.career.career_dashboard`)
+- Analytics System (`ai_career_platform.analytics.analytics_tracker`)
+- Multi-Model AI Support (`ai_career_platform.ai_providers.factory`)
+- Secret Scanning & Input Validation (`ai_career_platform.security`, `ai_career_platform.utils.validators`)
 
 ## Installation
 
 ```bash
-pip install -e ".[dev]"
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
 ```
-
-## Environment
-
-Copy `.env.example` to `.env` and set provider keys and runtime settings.
 
 ## Usage
 
-- Use `ai_career_platform` as the core library for ATS scoring, resume-job matching, interview preparation, career roadmaps, analytics, validation, and LLM provider selection.
-- Use `resume_crew` for the CrewAI-based resume optimization workflow.
+```bash
+cp .env.example .env
+# set at least one AI provider key in .env
+python -m ai_career_platform.main
+```
 
-## Testing
+## Configuration
+
+See `.env.example` for all supported environment variables:
+
+- `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` / `OLLAMA_API_KEY` + `OLLAMA_BASE_URL`
+- `SERPER_API_KEY` (for CrewAI tools if using `resume_crew`)
+- `SECRET_KEY` — must be set to a secure random value
+- `DATABASE_URL` — defaults to `sqlite:///./career_platform.db`
+- `DEBUG` / `LOG_LEVEL`
+
+## Architecture
+
+Modular Python package under `src/ai_career_platform`.
+
+Key modules:
+
+- `core/ats_engine.py` — deterministic ATS scoring with section detection, keyword density, and formatting risk.
+- `core/job_matcher.py` — keyword overlap scoring with skill gap analysis.
+- `interview/interview_module.py` — LLM-driven interview prep generation with JSON fallback parsing.
+- `career/career_dashboard.py` — LLM-driven career roadmap generation with JSON fallback parsing.
+- `analytics/analytics_tracker.py` — JSONL persistence for ATS/job-match/resume-optimization events with trend queries.
+- `ai_providers/` — `OpenAIProvider`, `AnthropicProvider`, `GeminiProvider`, `OllamaProvider` behind `get_llm_provider()` factory.
+- `security.py` — `SecretScanner` with precompiled regex patterns for common token leakage.
+- `utils/validators.py` — input validation, filename sanitization, secret redaction.
+
+The `resume_crew` CrewAI integration remains available under `src/resume_crew/` for crew-based resume optimization workflows.
+
+## Running Tests
 
 ```bash
 pytest
 ```
 
-## License
-
-MIT
+Coverage target: >= 70%.

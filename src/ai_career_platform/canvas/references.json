@@ -1,0 +1,27 @@
+({
+  quick_facts: [
+    "Record revenue (~$16B in 2023) with consistent growth.",
+    "Strong emphasis on DEI and collaborative, team-based culture.",
+    "Major competitors: BCG, Bain, Accenture, Deloitte.",
+    "Generative AI and digital transformation are key focus areas.",
+    "45,000+ employees globally with continued hiring.",
+  ],
+  behavioral: [
+    { q: "Tell me about a time you led a team through ambiguity.", difficulty: "medium" },
+    { q: "Describe a situation where you had to persuade stakeholders.", difficulty: "hard" },
+    { q: "Give an example of a time your analysis changed a decision.", difficulty: "medium" },
+  ],
+  technical: [
+    { q: "Walk me through a framework you would use for market entry.", difficulty: "hard" },
+    { q: "How would you estimate the total addressable market for a new product?", difficulty: "medium" },
+  ],
+  company_specific: [
+    { q: "Why consulting, and why this firm specifically?", difficulty: "easy" },
+    { q: "How do you stay current on industry trends and client needs?", difficulty: "medium" },
+  ],
+  preparation_tips: [
+    "Use the STAR method to structure past experiences.",
+    "Prepare 2-3 detailed project stories with clear metrics.",
+    "Research the firm’s recent publications and industry focus."
+  ]
+})

@@ -1,9 +1,11 @@
 import json
 import logging
 import os
-from datetime import datetime
-from typing import List, Dict, Optional
-from ..models import AnalyticsEvent, HistoryRecord
+import statistics
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional
+
+from ai_career_platform.models import AnalyticsEvent, HistoryRecord
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +27,8 @@ class AnalyticsTracker:
         except OSError:
             logger.debug("Analytics write skipped: %s", self.storage_path)
 
-    def load(self, filters: Optional[Dict] = None) -> List[Dict]:
-        events: List[Dict] = []
+    def load(self, filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        events: List[Dict[str, Any]] = []
         if not os.path.exists(self.storage_path):
             return events
         for line in self._lines():
@@ -34,49 +36,60 @@ class AnalyticsTracker:
                 obj = json.loads(line)
             except Exception:
                 continue
-            if not self._match(obj, filters or {}):
+            if not self._matches_filters(obj, filters or {}):
                 continue
             events.append(obj)
         return events
 
-    def ats_score_trend(self, days: int = 30) -> Dict:
-        since = datetime.utcnow().timestamp() - days * 86400
-        scores = []
-        for ev in self.load({"event_type": "ats_score"}):
+    def ats_score_trend(self, days: int = 30, filters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        since = datetime.now(timezone.utc) - timedelta(days=days)
+        events = self.load(filters=filters)
+        scores: List[float] = []
+        for ev in events:
+            if ev.get("event_type") != "ats_score":
+                continue
+            ts = ev.get("timestamp")
             try:
-                ts = datetime.fromisoformat(ev["timestamp"]).timestamp()
+                when = datetime.fromisoformat(ts)
             except Exception:
                 continue
-            if ts < since:
+            if when.tzinfo is None:
+                when = when.replace(tzinfo=timezone.utc)
+            if when < since:
                 continue
             value = ((ev.get("data") or {}).get("overall_score"))
             if isinstance(value, (int, float)):
                 scores.append(float(value))
         if not scores:
-            return {"count": 0, "average": 0.0, "min": 0.0, "max": 0.0}
-        import statistics
-        return {"count": len(scores), "average": round(statistics.mean(scores), 2), "min": min(scores), "max": max(scores)}
+            return {"window_days": days, "count": 0, "average": 0.0, "min": 0.0, "max": 0.0}
+        return {"window_days": days, "count": len(scores), "average": round(statistics.mean(scores), 2), "min": round(min(scores), 2), "max": round(max(scores), 2)}
 
-    def match_score_trend(self, days: int = 30) -> Dict:
-        since = datetime.utcnow().timestamp() - days * 86400
-        scores = []
-        for ev in self.load({"event_type": "job_match"}):
+    def match_score_trend(self, days: int = 30, filters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        since = datetime.now(timezone.utc) - timedelta(days=days)
+        events = self.load(filters=filters)
+        scores: List[float] = []
+        for ev in events:
+            if ev.get("event_type") != "job_match":
+                continue
+            ts = ev.get("timestamp")
             try:
-                ts = datetime.fromisoformat(ev["timestamp"]).timestamp()
+                when = datetime.fromisoformat(ts)
             except Exception:
                 continue
-            if ts < since:
+            if when.tzinfo is None:
+                when = when.replace(tzinfo=timezone.utc)
+            if when < since:
                 continue
             value = ((ev.get("data") or {}).get("match_score"))
             if isinstance(value, (int, float)):
                 scores.append(float(value))
         if not scores:
-            return {"count": 0, "average": 0.0, "min": 0.0, "max": 0.0}
-        import statistics
-        return {"count": len(scores), "average": round(statistics.mean(scores), 2), "min": min(scores), "max": max(scores)}
+            return {"window_days": days, "count": 0, "average": 0.0, "min": 0.0, "max": 0.0}
+        return {"window_days": days, "count": len(scores), "average": round(statistics.mean(scores), 2), "min": round(min(scores), 2), "max": round(max(scores), 2)}
 
-    def improvement_history(self) -> List[Dict]:
-        return self.load({"event_type": {"$in": ["ats_score", "job_match", "resume_optimization"]}})
+    def improvement_history(self, filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        allowed = {"ats_score", "job_match", "resume_optimization"}
+        return [ev for ev in self.load(filters=filters) if ev.get("event_type") in allowed]
 
     def _lines(self):
         try:
@@ -87,12 +100,8 @@ class AnalyticsTracker:
             return []
 
     @staticmethod
-    def _match(obj: Dict, filters: Dict) -> bool:
+    def _matches_filters(event: Dict[str, Any], filters: Dict[str, Any]) -> bool:
         for key, value in filters.items():
-            if isinstance(value, dict) and "$in" in value:
-                if obj.get(key) not in value["$in"]:
-                    return False
-                continue
-            if obj.get(key) != value:
+            if event.get(key) != value:
                 return False
         return True

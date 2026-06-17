@@ -1,9 +1,14 @@
+import re
 import logging
 from typing import List, Dict, Optional
-from .ats_engine import ATSScoringEngine
-from ..models import JobMatchReport
+from ai_career_platform.core.ats_engine import ATSScoringEngine
+from ai_career_platform.models import JobMatchReport
 
 logger = logging.getLogger(__name__)
+
+STOP_WORDS = {
+    "the", "and", "for", "with", "that", "this", "have", "from", "they", "will", "would", "could", "should", "been", "were", "was", "are", "not", "but", "can", "may", "might", "shall", "looking", "required",
+}
 
 
 class JobMatcher:
@@ -14,8 +19,8 @@ class JobMatcher:
         ats = self.ats.score(resume_text, job_keywords=job_keywords)
         job_lower = (job_description or "").lower()
         resume_lower = (resume_text or "").lower()
-        job_words = [w for w in __import__("re").findall(r"[a-z0-9+#./-]{3,}", job_lower)]
-        resume_words = set(__import__("re").findall(r"[a-z0-9+#./-]{3,}", resume_lower))
+        job_words = [w for w in re.findall(r"[a-z0-9+#./-]{3,}", job_lower) if w not in STOP_WORDS]
+        resume_words = set(re.findall(r"[a-z0-9+#./-]{3,}", resume_lower))
 
         present = [w for w in job_words if w in resume_words]
         missing = [w for w in job_words if w not in resume_words]

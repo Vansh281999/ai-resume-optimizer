@@ -1,4 +1,4 @@
-from typing import Protocol
+from typing import Protocol, List, Optional
 from pydantic import BaseModel
 
 class AIMessage(BaseModel):
@@ -6,5 +6,5 @@ class AIMessage(BaseModel):
     content: str
 
 class BaseLLMProvider(Protocol):
-    def generate(self, messages, **kwargs):
+    def generate(self, messages: List[AIMessage], timeout: int = 60, retries: int = 2) -> str:
         ...

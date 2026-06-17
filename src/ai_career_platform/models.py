@@ -1,6 +1,10 @@
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional
-from datetime import datetime
+from datetime import datetime, timezone
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
 
 class ATSScoreReport(BaseModel):
     overall_score: float = Field(ge=0, le=100)
@@ -49,11 +53,11 @@ class CareerRoadmap(BaseModel):
 
 class AnalyticsEvent(BaseModel):
     event_type: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=_utcnow)
     data: Dict = Field(default_factory=dict)
 
 class HistoryRecord(BaseModel):
     id: str
     event_type: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=_utcnow)
     data: Dict = Field(default_factory=dict)

@@ -1,25 +1,42 @@
-from .base import BaseLLMProvider, AIMessage
+import os
+import time
+from typing import List, Union, Dict
 
-class GeminiProvider(BaseLLMProvider):
-    def __init__(self, model: str = "gemini-2.0-flash", api_key: str = ""):
+class GeminiProvider:
+    def __init__(self, model: str = "gemini-2.0-flash", api_key: str = "", timeout: int = 60, retries: int = 2):
         self.model = model
         self.api_key = api_key or os.getenv("GEMINI_API_KEY", "")
+        self.default_timeout = timeout
+        self.default_retries = retries
 
-    def generate(self, messages, **kwargs):
+    def generate(self, messages, timeout: int = 60, retries: int = 2) -> str:
+        from .base import AIMessage
         import google.generativeai as genai
-        genai.configure(api_key=self.api_key)
-        model = genai.GenerativeModel(model_name=self.model)
-        history = []
-        latest = ""
+        system_parts = []
         for m in messages:
-            if m.role == "system":
-                latest = m.content + "\n" + latest
-                continue
-            history.append({"role": m.role, "parts": [m.content]})
-        if history:
-            chat = model.start_chat(history=history[:-1])
-            prompt = (latest + history[-1]["parts"][0]) if latest else history[-1]["parts"][0]
-            response = chat.send_message(prompt)
-        else:
-            response = model.generate_content(latest or "")
-        return response.text or ""
+            if isinstance(m, AIMessage) and m.role == "system":
+                system_parts.append(m.content)
+            elif isinstance(m, dict) and m.get("role") == "system":
+                system_parts.append(m.get("content", ""))
+        system_prompt = "\n".join(system_parts) if system_parts else ""
+        for attempt in range(retries + 1):
+            try:
+                genai.configure(api_key=self.api_key)
+                model = genai.GenerativeModel(model_name=self.model)
+                content = self._build_content(messages, system_prompt)
+                response = model.generate_content(content)
+                return response.text or ""
+            except Exception:
+                if attempt == retries:
+                    raise
+                time.sleep(0.5 * (attempt + 1))
+        return ""
+
+    def _build_content(self, messages, system_prompt: str) -> str:
+        parts = [system_prompt] if system_prompt else []
+        for m in messages:
+            if isinstance(m, AIMessage) and m.role != "system":
+                parts.append(m.content)
+            elif isinstance(m, dict) and m.get("role") != "system":
+                parts.append(m.get("content", ""))
+        return "\n".join(p for p in parts if p)

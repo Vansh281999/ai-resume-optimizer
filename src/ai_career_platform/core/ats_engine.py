@@ -1,7 +1,8 @@
 import re
 import logging
-from typing import List, Dict, Optional
-from .models import ATSScoreReport
+from typing import List, Dict, Optional, Set
+
+from ai_career_platform.models import ATSScoreReport
 
 logger = logging.getLogger(__name__)
 
@@ -21,10 +22,20 @@ FORMATTING_RISKS = [
     (r"[\u0080-\u00FF]{3,}", "Non-ASCII chars"),
 ]
 
-ACTION_VERBS = [
+ACTION_VERBS: List[str] = [
     "achieved", "improved", "led", "managed", "developed", "created",
-    "increased", "reduced", "optimized", "delivered", "implemented"
+    "increased", "reduced", "optimized", "delivered", "implemented",
 ]
+
+STOP_WORDS: Set[str] = {
+    "the", "and", "for", "with", "that", "this", "have", "from", "they",
+    "will", "would", "could", "should", "been", "were", "was", "are", "not",
+    "but", "can", "may", "might", "shall",
+}
+
+MAX_RESUME_LENGTH = 20_000
+FORMATTING_RISK_UNIT = 18.0
+KEYWORD_PATTERN = re.compile(r"[a-z0-9+#./-]{3,}")
 
 
 class ATSScoringEngine:
@@ -46,7 +57,7 @@ class ATSScoringEngine:
 
         keywords = [str(k).strip().lower() for k in (job_keywords or []) if str(k).strip()]
         if not keywords:
-            keywords = list({w for w in re.findall(r"[a-z0-9+#./-]{3,}", lower) if w not in {"the","and","for","with","that","this","have","from","they","will","would","could","should","been","were","was","are","not","but","can","may","might","shall"}})[:120]
+            keywords = list({w for w in KEYWORD_PATTERN.findall(lower) if w not in STOP_WORDS})[:120]
 
         keyword_density_score = self._keyword_density(lower, keywords)
         formatting_risk_score = self._formatting_risk(text)
@@ -61,7 +72,7 @@ class ATSScoringEngine:
 
         issues: List[str] = []
         suggestions: List[str] = []
-        if len(text) > 20_000:
+        if len(text) > MAX_RESUME_LENGTH:
             issues.append("Resume too long; condense to <=2 pages")
             suggestions.append("Shorten resume length for ATS compatibility")
         if not re.search(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", text):
@@ -100,7 +111,7 @@ class ATSScoringEngine:
         score = 0.0
         for pattern, _ in FORMATTING_RISKS:
             if re.search(pattern, text):
-                score += 18.0
-        if len(text) > 20_000:
+                score += FORMATTING_RISK_UNIT
+        if len(text) > MAX_RESUME_LENGTH:
             score += 25.0
         return min(100.0, score)

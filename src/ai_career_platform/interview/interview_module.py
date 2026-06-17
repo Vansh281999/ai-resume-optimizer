@@ -1,8 +1,8 @@
 import logging
 from typing import List, Dict, Optional
-from ..ai_providers.factory import get_llm_provider
-from ..models import InterviewPrepReport, InterviewQuestion
-from ..utils.validators import validate_input
+from ai_career_platform.ai_providers.factory import get_llm_provider
+from ai_career_platform.models import InterviewPrepReport, InterviewQuestion
+from ai_career_platform.utils.validators import validate_input
 
 logger = logging.getLogger(__name__)
 
@@ -25,16 +25,20 @@ class InterviewPrepModule:
             f"Job description:\n{job_description}\n"
         )
         provider = get_llm_provider(self.provider_name, self.model)
-        text = provider.generate([{"role": "user", "content": prompt}])
-        payload = self._parse(text)
-        return InterviewPrepReport(
-            company=company,
-            role=role,
-            technical_questions=self._questions(payload.get("technical_questions", [])),
-            behavioral_questions=self._questions(payload.get("behavioral_questions", [])),
-            company_specific_questions=self._questions(payload.get("company_specific_questions", [])),
-            preparation_tips=payload.get("preparation_tips", []) or [],
-        )
+        try:
+            text = provider.generate([{"role": "user", "content": prompt}])
+            payload = self._parse(text)
+            return InterviewPrepReport(
+                company=company,
+                role=role,
+                technical_questions=self._questions(payload.get("technical_questions", [])),
+                behavioral_questions=self._questions(payload.get("behavioral_questions", [])),
+                company_specific_questions=self._questions(payload.get("company_specific_questions", [])),
+                preparation_tips=payload.get("preparation_tips", []) or [],
+            )
+        except Exception as exc:
+            logger.error("interview_generate_error error=%s", exc)
+            raise
 
     def _questions(self, items: List[Dict]) -> List[InterviewQuestion]:
         out: List[InterviewQuestion] = []
