@@ -18,17 +18,10 @@ jobs:
           node-version: 20
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
+      - run: cd frontend && npm ci
       - run: |
           cd frontend
-          npm ci
-      - run: |
-          cd frontend
-          # Use secret if available, otherwise copy production env
-          if [ -n "${{ secrets.VITE_API_URL }}" ]; then
-            echo "VITE_API_URL=${{ secrets.VITE_API_URL }}" > .env
-          else
-            cp .env.production .env
-          fi
+          cp .env.production .env
           npm run build
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
