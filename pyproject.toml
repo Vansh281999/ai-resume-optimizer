@@ -4,6 +4,8 @@ version = "0.2.0"
 description = "AI Career Intelligence Platform"
 requires-python = ">=3.10"
 dependencies = [
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.23.0",
     "pydantic>=2.0",
     "pydantic-settings>=2.0",
     "sqlalchemy>=2.0",
