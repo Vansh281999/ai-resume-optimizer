@@ -24,7 +24,12 @@ class OpenRouterProvider(BaseLLMProvider):
                 response = httpx.post(
                     "https://openrouter.ai/api/v1/chat/completions",
                     json={"model": self.model, "messages": formatted},
-                    headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
+                    headers={
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Content-Type": "application/json",
+                        "HTTP-Referer": "http://localhost",
+                        "X-Title": "AI Career Platform",
+                    },
                     timeout=timeout,
                 )
                 response.raise_for_status()

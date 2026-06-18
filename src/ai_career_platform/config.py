@@ -1,11 +1,15 @@
 from __future__ import annotations
+import os
+from pathlib import Path
 from typing import Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+_env_path = Path(__file__).resolve().parents[2] / ".env"
+
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=str(_env_path) if _env_path.exists() else ".env", extra="ignore")
 
     OPENAI_API_KEY: str = ""
     ANTHROPIC_API_KEY: str = ""

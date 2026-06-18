@@ -402,7 +402,7 @@ def create_app(overridden_settings=None) -> FastAPI:
         validate_input("company", req.company)
         validate_input("role", req.role)
         try:
-            module = InterviewPrepModule(provider="openrouter")
+            module = InterviewPrepModule(provider="gemini")
             report = module.generate(req.company, req.role, req.job_description)
             return report.model_dump()
         except Exception as exc:
@@ -420,7 +420,7 @@ def create_app(overridden_settings=None) -> FastAPI:
         validate_input("target_role", req.target_role)
         current_skills = [s.strip() for s in req.current_skills if s and str(s).strip()][:20]
         try:
-            dashboard = CareerDashboard(provider="openrouter")
+            dashboard = CareerDashboard(provider="gemini")
             roadmap = dashboard.roadmap(current_skills, req.target_role, req.context)
             return roadmap.model_dump()
         except Exception as exc:

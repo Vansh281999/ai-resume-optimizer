@@ -15,24 +15,24 @@ def _get_api_key(name: str) -> str:
     return getattr(settings, name, "") or ""
 
 def get_llm_provider(provider: str, model: Optional[str] = None, **kwargs):
-    provider = (provider or "openrouter").strip().lower()
+    provider = (provider or "gemini").strip().lower()
     if provider == "openai":
         return OpenAIProvider(model=model or "gpt-4o-mini", **kwargs)
     if provider == "anthropic":
         return AnthropicProvider(model=model or "claude-3-5-haiku-20241022", **kwargs)
     if provider in {"gemini", "google"}:
-        return GeminiProvider(model=model or "gemini-2.0-flash", **kwargs)
+        return GeminiProvider(model=model or "gemini-2.5-flash", **kwargs)
     if provider == "ollama":
         return OllamaProvider(model=model or "llama3", **kwargs)
     if provider == "openrouter":
-        return OpenRouterProvider(model=model or "anthropic/claude-3.5-haiku", **kwargs)
+        return OpenRouterProvider(model=model or "google/gemini-2.0-flash", **kwargs)
     if provider == "groq":
         return GroqProvider(model=model or "gpt-4o-mini", **kwargs)
     raise ValueError(f"Unsupported provider: {provider}")
 
 class MultiProvider(BaseLLMProvider):
     def __init__(self, providers: Optional[List[str]] = None, **kwargs):
-        self.provider_order = (providers or ["openrouter", "gemini", "ollama"]).copy()
+        self.provider_order = (providers or ["gemini", "openrouter", "ollama"]).copy()
         self.kwargs = kwargs
 
     def _get_provider_with_key(self, provider: str):
