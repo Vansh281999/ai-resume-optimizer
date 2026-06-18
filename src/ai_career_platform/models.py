@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from datetime import datetime, timezone
 
 
@@ -14,6 +14,7 @@ class ATSScoreReport(BaseModel):
     found_sections: List[str] = Field(default_factory=list)
     critical_issues: List[str] = Field(default_factory=list)
     improvement_suggestions: List[str] = Field(default_factory=list)
+    focus_areas: List[Dict[str, Any]] = Field(default_factory=list)
 
 class JobMatchReport(BaseModel):
     overall_match_score: float = Field(ge=0, le=100)
@@ -61,3 +62,12 @@ class HistoryRecord(BaseModel):
     event_type: str
     timestamp: datetime = Field(default_factory=_utcnow)
     data: Dict = Field(default_factory=dict)
+
+ATSScoreReport.model_rebuild()
+JobMatchReport.model_rebuild()
+InterviewQuestion.model_rebuild()
+InterviewPrepReport.model_rebuild()
+SkillProgression.model_rebuild()
+CareerRoadmap.model_rebuild()
+AnalyticsEvent.model_rebuild()
+HistoryRecord.model_rebuild()

@@ -100,6 +100,11 @@ class ATSScoringEngine:
             found_sections=found_sections,
             critical_issues=issues,
             improvement_suggestions=suggestions,
+            focus_areas=[
+                {"name": "Keyword alignment", "score": keyword_density_score},
+                {"name": "Section completeness", "score": round((len(found_sections) / max(len(ATS_KEYWORDS), 1)) * 100, 2)},
+                {"name": "Role-specific impact", "score": round(0.6 * keyword_density_score + 0.4 * (100 - formatting_risk_score), 2)},
+            ],
         )
 
     def _keyword_density(self, text: str, keywords: List[str]) -> float:

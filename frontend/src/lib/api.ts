@@ -20,6 +20,7 @@ export interface AtsScoreResponse {
   found_sections: string[];
   critical_issues: string[];
   improvement_suggestions: string[];
+  focus_areas: Array<{ name: string; score: number }>;
 }
 
 export interface JobMatchResponse {
@@ -115,6 +116,12 @@ export async function signup(name: string, email: string, password: string): Pro
   return response.data;
 }
 
+export async function updateProfile(name: string, email: string): Promise<{ id: string; name: string; email: string; created_at: string }> {
+  const response = await api.patch('/auth/me', { name, email });
+  return response.data;
+}
+
+
 export async function scoreResume(resumeText: string, jobKeywords?: string[]): Promise<AtsScoreResponse> {
   const response = await api.post<AtsScoreResponse>('/ats/score', { resume_text: resumeText, job_keywords: jobKeywords });
   return response.data;
@@ -187,8 +194,19 @@ export async function resetPassword(token: string, newPassword: string): Promise
   return response.data;
 }
 
+export async function changePassword(currentPassword: string, newPassword: string): Promise<{ message: string }> {
+  const response = await api.patch<{ message: string }>('/auth/change-password', { current_password: currentPassword, new_password: newPassword });
+  return response.data;
+}
+
+
 export async function scanSecrets(text: string): Promise<{ findings_count: number; redacted_length: number }> {
   const response = await api.post<{ findings_count: number; redacted_length: number }>('/security/scan', { text });
+  return response.data;
+}
+
+export async function getFocusAreas(): Promise<{ focus_areas: Array<{ name: string; score: number }> }> {
+  const response = await api.get<{ focus_areas: Array<{ name: string; score: number }> }>('/analytics/focus-areas');
   return response.data;
 }
 
@@ -197,8 +215,23 @@ export async function getHealth(): Promise<{ status: string; timestamp: string }
   return response.data;
 }
 
-export async function getAiHealth(): Promise<Record<string, { installed: boolean; configured: boolean; status: string }>> {
-  const response = await api.get<Record<string, { installed: boolean; configured: boolean; status: string }>>('/health/ai');
+export interface AiProviderStatus {
+  installed: boolean;
+  configured: boolean;
+  status: string;
+}
+
+export interface AiHealthResponse {
+  openai: AiProviderStatus;
+  anthropic: AiProviderStatus;
+  gemini: AiProviderStatus;
+  ollama: AiProviderStatus;
+  openrouter: AiProviderStatus;
+  groq: AiProviderStatus;
+}
+
+export async function getAiHealth(): Promise<AiHealthResponse> {
+  const response = await api.get<AiHealthResponse>('/health/ai');
   return response.data;
 }
 

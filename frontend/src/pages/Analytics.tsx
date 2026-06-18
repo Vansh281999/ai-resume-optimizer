@@ -1,32 +1,26 @@
-import React from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ElementType } from 'react';
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Activity, Briefcase, ClipboardCheck, TrendingUp } from 'lucide-react';
-import { useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useTrendsQuery } from '../hooks/queries';
 import { formatScore } from '../lib/utils';
 import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
 
-const fallbackHistory = [
-  { name: 'Week 1', ats: 64, match: 58 },
-  { name: 'Week 2', ats: 69, match: 64 },
-  { name: 'Week 3', ats: 72, match: 70 },
-  { name: 'Week 4', ats: 78, match: 75 },
-  { name: 'Week 5', ats: 83, match: 80 },
-  { name: 'Week 6', ats: 86, match: 84 },
-];
-
 export function Analytics() {
   const { addToast } = useToast();
   const { isAuthenticated } = useAuth();
   const trendsQuery = useTrendsQuery();
-  const trends = trendsQuery.data || {
-    ats: { window_days: 30, count: 14, average: 78, min: 64, max: 92 },
-    match: { window_days: 30, count: 10, average: 74, min: 58, max: 88 },
-    history: fallbackHistory,
+  const [trendsError, setTrendsError] = useState<string | null>(null);
+  const trends = trendsQuery.data;
+  const safeTrends = trends || {
+    ats: { window_days: 30, count: 0, average: 0, min: 0, max: 0 },
+    match: { window_days: 30, count: 0, average: 0, min: 0, max: 0 },
+    history: [],
   };
-  const chartData = trends.history.length ? trends.history : fallbackHistory;
+  const chartData = trends?.history?.length ? trends.history : [];
+  const hasShownError = useRef(false);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -34,20 +28,25 @@ export function Analytics() {
     }
   }, [isAuthenticated]);
 
-  const hasShownError = React.useRef(false);
-
   useEffect(() => {
     if (trendsQuery.error && !hasShownError.current) {
+      setTrendsError(trendsQuery.error);
       addToast(trendsQuery.error, 'info');
       hasShownError.current = true;
     }
+    if (!trendsQuery.error && hasShownError.current) {
+      hasShownError.current = false;
+      setTrendsError(null);
+    }
   }, [trendsQuery.error, addToast]);
 
+  const hasNoData = !trendsQuery.loading && !trends && !trendsError;
+
   const summaryCards: { label: string; value: string | number; sublabel: string; icon: ElementType; tone: string; bg: string }[] = [
-    { label: 'ATS scans', value: trends.ats.count, sublabel: `${trends.ats.window_days}-day window`, icon: ClipboardCheck, tone: 'text-primary-500', bg: 'bg-primary-500/10' },
-    { label: 'Average ATS', value: formatScore(trends.ats.average), sublabel: `${formatScore(trends.ats.min)} - ${formatScore(trends.ats.max)}`, icon: TrendingUp, tone: 'text-emerald-500', bg: 'bg-emerald-500/10' },
-    { label: 'Job matches', value: trends.match.count, sublabel: `${trends.match.window_days}-day window`, icon: Briefcase, tone: 'text-blue-500', bg: 'bg-blue-500/10' },
-    { label: 'Average match', value: formatScore(trends.match.average), sublabel: `${formatScore(trends.match.min)} - ${formatScore(trends.match.max)}`, icon: Activity, tone: 'text-violet-500', bg: 'bg-violet-500/10' },
+    { label: 'ATS scans', value: safeTrends.ats.count || '—', sublabel: `${safeTrends.ats.window_days}-day window`, icon: ClipboardCheck, tone: 'text-primary-500', bg: 'bg-primary-500/10' },
+    { label: 'Average ATS', value: safeTrends.ats.count ? formatScore(safeTrends.ats.average) : '—', sublabel: `${safeTrends.ats.count ? `${formatScore(safeTrends.ats.min)} - ${formatScore(safeTrends.ats.max)}` : 'No data'}`, icon: TrendingUp, tone: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+    { label: 'Job matches', value: safeTrends.match.count || '—', sublabel: `${safeTrends.match.window_days}-day window`, icon: Briefcase, tone: 'text-blue-500', bg: 'bg-blue-500/10' },
+    { label: 'Average match', value: safeTrends.match.count ? formatScore(safeTrends.match.average) : '—', sublabel: `${safeTrends.match.count ? `${formatScore(safeTrends.match.min)} - ${formatScore(safeTrends.match.max)}` : 'No data'}`, icon: Activity, tone: 'text-violet-500', bg: 'bg-violet-500/10' },
   ];
 
   return (
@@ -77,22 +76,34 @@ export function Analytics() {
 
       <div className="grid gap-6 xl:grid-cols-2">
         <div className="glass-card">
-          <div className="mb-6">
-            <h3 className="text-xl font-black">ATS and match trend</h3>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Weekly score movement from recent history.</p>
+          <div className="mb-6 flex items-center justify-between gap-4">
+            <div>
+              <h3 className="text-xl font-black">ATS and match trend</h3>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Weekly score movement from recent history.</p>
+            </div>
+            {trendsError && <button onClick={() => trendsQuery.refetch()} className="btn-secondary text-xs">Retry</button>}
           </div>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ top: 10, right: 20, bottom: 8, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" className="opacity-40" />
-                <XAxis dataKey="name" />
-                <YAxis domain={[0, 100]} />
-                <Tooltip formatter={(value: number) => [formatScore(value), '']} />
-                <Line type="monotone" dataKey="ats" name="ATS" stroke="#6366f1" strokeWidth={3} dot={{ r: 4 }} />
-                <Line type="monotone" dataKey="match" name="Match" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          {hasNoData ? (
+            <div className="flex min-h-80 flex-col items-center justify-center text-center">
+              <TrendingUp className="mb-4 size-12 text-slate-300 dark:text-slate-700" />
+              <p className="text-sm font-black text-slate-500">No analytics data yet</p>
+              <p className="mt-1 max-w-sm text-sm text-slate-400">Run an ATS scan or job match to start building your history.</p>
+              <Link to="/analyzer" className="btn-primary mt-4">Run Analysis</Link>
+            </div>
+          ) : (
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData} margin={{ top: 10, right: 20, bottom: 8, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="opacity-40" />
+                  <XAxis dataKey="name" />
+                  <YAxis domain={[0, 100]} />
+                  <Tooltip formatter={(value: number) => [formatScore(value), '']} />
+                  <Line type="monotone" dataKey="ats" name="ATS" stroke="#6366f1" strokeWidth={3} dot={{ r: 4 }} />
+                  <Line type="monotone" dataKey="match" name="Match" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
 
         <div className="glass-card">
@@ -100,24 +111,32 @@ export function Analytics() {
             <h3 className="text-xl font-black">Score distribution</h3>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Latest average, minimum, and maximum values.</p>
           </div>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={[
-                { name: 'ATS average', score: trends.ats.average },
-                { name: 'ATS min', score: trends.ats.min },
-                { name: 'ATS max', score: trends.ats.max },
-                { name: 'Match average', score: trends.match.average },
-                { name: 'Match min', score: trends.match.min },
-                { name: 'Match max', score: trends.match.max },
-              ]} margin={{ top: 10, right: 20, bottom: 8, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" className="opacity-40" />
-                <XAxis dataKey="name" />
-                <YAxis domain={[0, 100]} />
-                <Tooltip formatter={(value: number) => [formatScore(value), '']} />
-                <Bar dataKey="score" fill="#6366f1" radius={[10, 10, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          {hasNoData ? (
+            <div className="flex min-h-80 flex-col items-center justify-center text-center">
+              <Activity className="mb-4 size-12 text-slate-300 dark:text-slate-700" />
+              <p className="text-sm font-black text-slate-500">No data to display</p>
+              <p className="mt-1 text-sm text-slate-400">Distribution charts appear once you have scan history.</p>
+            </div>
+          ) : (
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={[
+                  { name: 'ATS average', score: safeTrends.ats.average },
+                  { name: 'ATS min', score: safeTrends.ats.min },
+                  { name: 'ATS max', score: safeTrends.ats.max },
+                  { name: 'Match average', score: safeTrends.match.average },
+                  { name: 'Match min', score: safeTrends.match.min },
+                  { name: 'Match max', score: safeTrends.match.max },
+                ]} margin={{ top: 10, right: 20, bottom: 8, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="opacity-40" />
+                  <XAxis dataKey="name" />
+                  <YAxis domain={[0, 100]} />
+                  <Tooltip formatter={(value: number) => [formatScore(value), '']} />
+                  <Bar dataKey="score" fill="#6366f1" radius={[10, 10, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
       </div>
     </div>

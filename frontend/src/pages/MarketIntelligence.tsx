@@ -1,13 +1,51 @@
 import { useState } from 'react';
-import { BarChart3, TrendingUp, Briefcase, Brain, AlertCircle } from 'lucide-react';
-import { getMarketSkills, getMarketTrends, SkillDemand, MarketTrend, MarketResponse } from '../lib/api';
+import { ArrowUpRight, BarChart3, Briefcase, Brain, TrendingUp, AlertCircle } from 'lucide-react';
+import { getMarketSkills, getMarketTrends, getMarketJobs, SkillDemand, MarketTrend, MarketResponse, JobPosting } from '../lib/api';
 import { useToast } from '../contexts/ToastContext';
+
+export interface MarketJobCardProps {
+  job: JobPosting;
+}
+
+export function MarketJobCard({ job }: MarketJobCardProps) {
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-950">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h4 className="text-lg font-black">{job.title}</h4>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{job.company} &middot; {job.location}</p>
+        </div>
+        {job.salary_min && job.salary_max && (
+          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
+            ${job.salary_min.toLocaleString()} – ${job.salary_max.toLocaleString()}
+          </span>
+        )}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {(job.skills ?? []).map((skill) => (
+          <span key={skill} className="rounded-full bg-primary-100 px-3 py-1 text-xs font-black text-primary-800 dark:bg-primary-900 dark:text-primary-200">
+            {skill}
+          </span>
+        ))}
+      </div>
+      <a
+        href={job.url}
+        target="_blank"
+        rel="noreferrer"
+        className="mt-4 inline-flex items-center gap-2 text-sm font-black text-primary-600 hover:text-primary-700 dark:text-primary-400"
+      >
+        View posting <ArrowUpRight className="size-4" />
+      </a>
+    </div>
+  );
+}
 
 export function MarketIntelligence() {
   const { addToast } = useToast();
   const [role, setRole] = useState('');
   const [skillsData, setSkillsData] = useState<MarketResponse<Record<string, SkillDemand>> | null>(null);
   const [trendsData, setTrendsData] = useState<MarketResponse<MarketTrend> | null>(null);
+  const [jobs, setJobs] = useState<JobPosting[] | null>(null);
   const [loading, setLoading] = useState(false);
 
   const fetchMarketData = async (event: React.FormEvent) => {
@@ -18,12 +56,14 @@ export function MarketIntelligence() {
     }
     setLoading(true);
     try {
-      const [skills, trends] = await Promise.all([
+      const [skills, trends, jobsData] = await Promise.all([
         getMarketSkills(role),
         getMarketTrends(role),
+        getMarketJobs(role),
       ]);
       setSkillsData(skills);
       setTrendsData(trends);
+      setJobs(jobsData.data ?? []);
     } catch (error) {
       addToast('Failed to fetch market data', 'error');
     } finally {
@@ -32,6 +72,7 @@ export function MarketIntelligence() {
   };
 
   const topSkills = skillsData?.data ? Object.entries(skillsData.data).slice(0, 10) : [];
+  const jobListings = jobs ?? [];
 
   return (
     <div className="space-y-6">
@@ -119,6 +160,31 @@ export function MarketIntelligence() {
           </div>
         </div>
       )}
+
+      <div className="glass-card">
+        <div className="mb-5 flex items-center gap-3">
+          <Briefcase className="size-6 text-primary-500" />
+          <h3 className="text-xl font-black">Job postings for "{role}"</h3>
+        </div>
+        {jobListings.length === 0 ? (
+          <div className="flex min-h-48 flex-col items-center justify-center text-center">
+            <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+              No job postings yet. Run a market analysis to surface live listings for this role.
+            </p>
+          </div>
+        ) : (
+          <>
+            <p className="text-xs text-slate-500 mb-4">
+              Live listings from RemoteOK &middot; Showing {jobListings.length} results
+            </p>
+            <div className="space-y-4">
+              {jobListings.map((job) => (
+                <MarketJobCard key={job.id ?? job.url} job={job} />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
 
       {!skillsData && !loading && (
         <div className="glass-card">

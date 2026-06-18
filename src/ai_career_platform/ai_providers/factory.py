@@ -7,6 +7,7 @@ from .anthropic_provider import AnthropicProvider
 from .gemini_provider import GeminiProvider
 from .ollama_provider import OllamaProvider
 from .openrouter_provider import OpenRouterProvider
+from .groq_provider import GroqProvider
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,8 @@ def get_llm_provider(provider: str, model: Optional[str] = None, **kwargs):
         return OllamaProvider(model=model or "llama3", **kwargs)
     if provider == "openrouter":
         return OpenRouterProvider(model=model or "anthropic/claude-3.5-haiku", **kwargs)
+    if provider == "groq":
+        return GroqProvider(model=model or "gpt-4o-mini", **kwargs)
     raise ValueError(f"Unsupported provider: {provider}")
 
 class MultiProvider(BaseLLMProvider):

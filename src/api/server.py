@@ -249,6 +249,28 @@ def create_app(overridden_settings=None) -> FastAPI:
             raise HTTPException(status_code=404, detail="User not found")
         return {"id": user.id, "name": user.name, "email": user.email, "created_at": user.created_at.isoformat()}
 
+    class _UpdateProfileReq(BaseModel):
+        name: Optional[str] = None
+        email: Optional[str] = None
+
+    @application.patch("/api/auth/me")
+    def update_profile(req: _UpdateProfileReq, payload: Dict = Depends(_require_auth), db: Session = Depends(get_db)):
+        user = db.get(User, payload["sub"])
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        if req.name is not None:
+            user.name = req.name.strip()
+        if req.email is not None:
+            email = req.email.strip().lower()
+            existing = db.query(User).filter(User.email == email, User.id != user.id).first()
+            if existing:
+                raise HTTPException(status_code=400, detail="Email already in use")
+            user.email = email
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return {"id": user.id, "name": user.name, "email": user.email, "created_at": user.created_at.isoformat()}
+
     class _ForgotPwReq(BaseModel):
         email: str
 
@@ -293,6 +315,20 @@ def create_app(overridden_settings=None) -> FastAPI:
         db.commit()
         return {"message": "Password updated successfully"}
 
+    class _ChangePwReq(BaseModel):
+        current_password: str = Field(min_length=1)
+        new_password: str = Field(min_length=8)
+
+    @application.patch("/api/auth/change-password")
+    def change_password(req: _ChangePwReq, payload: Dict = Depends(_require_auth), db: Session = Depends(get_db)):
+        user = db.get(User, payload["sub"])
+        if not user or not _verify_pw(req.current_password, user.password_hash):
+            raise HTTPException(status_code=401, detail="Current password is incorrect")
+        user.password_hash = _hash_pw(req.new_password)
+        db.add(user)
+        db.commit()
+        return {"message": "Password changed successfully"}
+
     # ---- ATS ----
     class _ATSReq(BaseModel):
         resume_text: str = Field(min_length=1, max_length=settings.MAX_INPUT_LENGTH if hasattr(settings, "MAX_INPUT_LENGTH") else 50000)
@@ -305,7 +341,7 @@ def create_app(overridden_settings=None) -> FastAPI:
         if payload:
             tracker = AnalyticsTracker()
             tracker.record(type("Event", (), {"event_type": "ats_score", "timestamp": datetime.now(timezone.utc),
-                "data": {"overall_score": report.overall_score, "user_id": payload.get("sub")}})())
+                "data": {"overall_score": report.overall_score, "user_id": payload.get("sub"), "focus_areas": report.focus_areas}})())
         return report.model_dump()
 
     @application.post("/api/ats/upload")
@@ -332,7 +368,7 @@ def create_app(overridden_settings=None) -> FastAPI:
         if payload:
             tracker = AnalyticsTracker()
             tracker.record(type("Event", (), {"event_type": "ats_score", "timestamp": datetime.now(timezone.utc),
-                "data": {"overall_score": report.overall_score, "user_id": payload.get("sub")}})())
+                "data": {"overall_score": report.overall_score, "user_id": payload.get("sub"), "focus_areas": report.focus_areas}})())
         return report.model_dump()
 
     # ---- Jobs ----
@@ -444,6 +480,11 @@ def create_app(overridden_settings=None) -> FastAPI:
         tracker = AnalyticsTracker()
         return {"ats": tracker.ats_score_trend(days=30), "match": tracker.match_score_trend(days=30), "history": tracker.improvement_history()}
 
+    @application.get("/api/analytics/focus-areas")
+    def analytics_focus_areas(payload: Dict = Depends(_require_auth)):
+        tracker = AnalyticsTracker()
+        return {"focus_areas": tracker.get_latest_ats_score(filters={"user_id": payload.get("sub")}).get("focus_areas") or []}
+
     @application.post("/api/analytics/event")
     def analytics_event(req: _AnalyticsEventReq, request: Request, payload: Dict = Depends(_require_auth)):
         tracker = AnalyticsTracker()
@@ -476,6 +517,7 @@ def create_app(overridden_settings=None) -> FastAPI:
             "gemini": {"installed": True, "configured": bool(settings.GEMINI_API_KEY), "status": "ok" if settings.GEMINI_API_KEY else "unavailable"},
             "ollama": {"installed": True, "configured": True, "status": "ok"},
             "openrouter": {"installed": True, "configured": bool(getattr(settings, "OPENROUTER_API_KEY", "")), "status": "ok" if getattr(settings, "OPENROUTER_API_KEY", "") else "unavailable"},
+            "groq": {"installed": True, "configured": bool(getattr(settings, "GROQ_API_KEY", "")), "status": "ok" if getattr(settings, "GROQ_API_KEY", "") else "unavailable"},
         }
 
     # ---- Static ----

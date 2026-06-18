@@ -5,19 +5,50 @@ import { API_BASE_URL } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from '../contexts/ToastContext';
+import { updateProfile, changePassword } from '../lib/api';
 
 export function Settings() {
-  const { user, logout } = useAuth();
+  const { user, setUser, logout } = useAuth();
   const { theme, setTheme, toggleTheme } = useTheme();
   const { addToast } = useToast();
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
+  const [isSaving, setIsSaving] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const updatedUser = { ...(user || { id: '' }), name, email };
-    localStorage.setItem('career_user', JSON.stringify(updatedUser));
-    addToast('Profile settings saved locally.', 'success');
+    setIsSaving(true);
+    try {
+      const updated = await updateProfile(name, email);
+      const updatedUser = { ...(user || { id: '' }), name: updated.name, email: updated.email };
+      localStorage.setItem('career_user', JSON.stringify(updatedUser));
+      if (setUser) setUser(updatedUser);
+      addToast('Profile updated successfully.', 'success');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update profile.';
+      addToast(message, 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handlePasswordChange = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsChangingPassword(true);
+    try {
+      await changePassword(currentPassword, newPassword);
+      setCurrentPassword('');
+      setNewPassword('');
+      addToast('Password changed successfully.', 'success');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to change password.';
+      addToast(message, 'error');
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   return (
@@ -88,6 +119,20 @@ export function Settings() {
             <SettingRow icon={UserRound} label="User profile" value="Stored as career_user in localStorage" />
             <SettingRow icon={Globe} label="API endpoint" value={API_BASE_URL} />
           </div>
+          <form onSubmit={handlePasswordChange} className="mt-6 space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-950">
+            <p className="text-sm font-black text-slate-700 dark:text-slate-200">Change password</p>
+            <div>
+              <label className="field-label" htmlFor="currentPassword">Current password</label>
+              <input id="currentPassword" className="field-input" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required />
+            </div>
+            <div>
+              <label className="field-label" htmlFor="newPassword">New password</label>
+              <input id="newPassword" className="field-input" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={8} />
+            </div>
+            <button className="btn-primary w-full" type="submit" disabled={isChangingPassword}>
+              {isChangingPassword ? 'Updating...' : 'Update password'}
+            </button>
+          </form>
           <button onClick={logout} className="btn-secondary mt-6 w-full border-rose-200 text-rose-700 hover:bg-rose-50 dark:border-rose-900 dark:text-rose-300 dark:hover:bg-rose-950">
             Sign out of this device
           </button>

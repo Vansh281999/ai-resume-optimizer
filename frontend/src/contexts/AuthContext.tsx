@@ -11,6 +11,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<AuthResponse>;
   signup: (name: string, email: string, password: string) => Promise<AuthResponse>;
   logout: () => void;
+  setUser: (user: User | null) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -101,6 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem('career_user');
         addToast('You have been signed out.', 'info');
       },
+      setUser,
     };
   }, [addToast, isLoading, token, user]);
 

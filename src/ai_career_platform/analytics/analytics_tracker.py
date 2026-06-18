@@ -99,6 +99,13 @@ class AnalyticsTracker:
         except OSError:
             return []
 
+    def get_latest_ats_score(self, filters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        events = self.load(filters=filters)
+        for event in reversed(events):
+            if event.get("event_type") == "ats_score":
+                return event.get("data") or {}
+        return {}
+
     @staticmethod
     def _matches_filters(event: Dict[str, Any], filters: Dict[str, Any]) -> bool:
         for key, value in filters.items():
