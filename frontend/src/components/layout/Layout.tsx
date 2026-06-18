@@ -1,4 +1,4 @@
-import { BarChart3, Briefcase, ClipboardCheck, Gauge, LayoutDashboard, LineChart, LogOut, Moon, Route, Settings as SettingsIcon, Sun, UserRound } from 'lucide-react';
+import { BarChart3, Briefcase, ClipboardCheck, Gauge, LayoutDashboard, LineChart, LogOut, Moon, Route, Settings as SettingsIcon, Sun, UserRound, ChartNoAxesColumn } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -10,6 +10,7 @@ const navigation = [
   { to: '/job-match', label: 'Job Match', icon: Briefcase },
   { to: '/interview', label: 'Interview Prep', icon: UserRound },
   { to: '/career', label: 'Career Roadmap', icon: Route },
+  { to: '/market', label: 'Market Intel', icon: ChartNoAxesColumn },
   { to: '/analytics', label: 'Analytics', icon: LineChart },
   { to: '/settings', label: 'Settings', icon: SettingsIcon },
 ];

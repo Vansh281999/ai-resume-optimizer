@@ -16,6 +16,7 @@ const InterviewPrep = lazy(() => import('./pages/InterviewPrep').then(m => ({ de
 const JobMatch = lazy(() => import('./pages/JobMatch').then(m => ({ default: m.JobMatch })));
 const AiSettings = lazy(() => import('./pages/AiSettings').then(m => ({ default: m.AiSettings })));
 const HealthDashboard = lazy(() => import('./pages/HealthDashboard').then(m => ({ default: m.HealthDashboard })));
+const MarketIntelligence = lazy(() => import('./pages/MarketIntelligence').then(m => ({ default: m.MarketIntelligence })));
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -28,10 +29,15 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
     );
   }
 
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
   return <Layout><Suspense fallback={<div className="flex min-h-screen items-center justify-center"><p className="text-sm font-semibold">Loading...</p></div>}>{children}</Suspense></Layout>;
 }
 
 export default function App() {
+  console.log('App rendering');
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
@@ -46,6 +52,7 @@ export default function App() {
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/ai-settings" element={<ProtectedRoute><AiSettings /></ProtectedRoute>} />
       <Route path="/health" element={<ProtectedRoute><HealthDashboard /></ProtectedRoute>} />
+      <Route path="/market" element={<ProtectedRoute><MarketIntelligence /></ProtectedRoute>} />
     </Routes>
   );
 }

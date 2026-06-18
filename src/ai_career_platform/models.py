@@ -49,7 +49,7 @@ class CareerRoadmap(BaseModel):
     target_role: str
     skill_progressions: List[SkillProgression] = Field(default_factory=list)
     estimated_timeline_months: int = 12
-    salary_progression: Dict[str, float] = Field(default_factory=dict)
+    salary_progression: Dict[str, Optional[float]] = Field(default_factory=lambda: {"entry": None, "mid": None, "senior": None})
 
 class AnalyticsEvent(BaseModel):
     event_type: str

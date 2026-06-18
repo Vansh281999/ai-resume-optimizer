@@ -29,6 +29,7 @@ function readStoredUser(): User | null {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  console.log('AuthProvider mounted');
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('career_token'));
   const [user, setUser] = useState<User | null>(readStoredUser);
   const [isLoading, setIsLoading] = useState(false);

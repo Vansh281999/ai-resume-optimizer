@@ -47,17 +47,11 @@ export interface InterviewResponse {
 }
 
 export interface SkillProgression {
-  skill: string;
+  skill_name: string;
   current_level: number;
   target_level: number;
-  recommended_actions: string[];
-}
-
-export interface SalaryProgression {
-  entry?: number;
-  mid?: number;
-  senior?: number;
-  currency?: string;
+  learning_resources: string[];
+  estimated_months?: number;
 }
 
 export interface CareerRoadmapResponse {
@@ -65,7 +59,7 @@ export interface CareerRoadmapResponse {
   target_role: string;
   skill_progressions: SkillProgression[];
   estimated_timeline_months: number;
-  salary_progression: SalaryProgression;
+  salary_progression: { entry?: number; mid?: number; senior?: number; currency?: string };
 }
 
 export interface MetricWindow {
@@ -205,5 +199,61 @@ export async function getHealth(): Promise<{ status: string; timestamp: string }
 
 export async function getAiHealth(): Promise<Record<string, { installed: boolean; configured: boolean; status: string }>> {
   const response = await api.get<Record<string, { installed: boolean; configured: boolean; status: string }>>('/health/ai');
+  return response.data;
+}
+
+export interface JobPosting {
+  id: string;
+  source: string;
+  title: string;
+  company: string;
+  location: string;
+  salary_min?: number;
+  salary_max?: number;
+  currency?: string;
+  skills: string[];
+  experience_level?: string;
+  remote: boolean;
+  posted_at?: string;
+  url?: string;
+}
+
+export interface SkillDemand {
+  skill: string;
+  demand_score: number;
+  job_count: number;
+  sources: string[];
+  period: string;
+  trend: string;
+}
+
+export interface MarketTrend {
+  role: string;
+  avg_salary: number | null;
+  demand_score: number;
+  growth_rate: number;
+  sample_size: number;
+}
+
+export interface MarketResponse<T> {
+  source: string[];
+  fetched_at: string;
+  confidence: number;
+  data: T;
+  error: string | null;
+}
+
+export async function getMarketJobs(title: string): Promise<MarketResponse<JobPosting[]>> {
+  const response = await api.get<MarketResponse<JobPosting[]>>('/market/jobs', { params: { title } });
+  return response.data;
+}
+
+export async function getMarketSkills(title: string): Promise<MarketResponse<Record<string, SkillDemand>>> {
+  const response = await api.get<MarketResponse<Record<string, SkillDemand>>>('/market/skills', { params: { title } });
+  return response.data;
+}
+
+export async function getMarketTrends(title: string): Promise<MarketResponse<MarketTrend>> {
+  const response = await api.get<MarketResponse<MarketTrend>>('/market/trends', { params: { title } });
   return response.data;
 }

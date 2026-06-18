@@ -1,6 +1,6 @@
 import logging
 from typing import List, Dict, Optional
-from ai_career_platform.ai_providers.factory import get_llm_provider
+from ai_career_platform.ai_providers.factory import get_llm_provider, get_multi_provider
 from ai_career_platform.models import InterviewPrepReport, InterviewQuestion
 from ai_career_platform.utils.validators import validate_input
 
@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 class InterviewPrepModule:
-    def __init__(self, provider: str = "openai", model: Optional[str] = None):
+    def __init__(self, provider: str = "openrouter", model: Optional[str] = None):
         self.provider_name = provider
         self.model = model
 

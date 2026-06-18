@@ -1,16 +1,17 @@
 import os
 import time
 from typing import List, Union, Dict
+from ai_career_platform.config import settings
+from .base import AIMessage
 
 class GeminiProvider:
     def __init__(self, model: str = "gemini-2.0-flash", api_key: str = "", timeout: int = 60, retries: int = 2):
         self.model = model
-        self.api_key = api_key or os.getenv("GEMINI_API_KEY", "")
+        self.api_key = api_key or getattr(settings, "GEMINI_API_KEY", "") or os.getenv("GEMINI_API_KEY", "")
         self.default_timeout = timeout
         self.default_retries = retries
 
     def generate(self, messages, timeout: int = 60, retries: int = 2) -> str:
-        from .base import AIMessage
         import google.generativeai as genai
         system_parts = []
         for m in messages:

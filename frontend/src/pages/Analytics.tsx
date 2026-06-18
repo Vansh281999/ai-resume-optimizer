@@ -1,9 +1,12 @@
+import React from 'react';
 import type { ElementType } from 'react';
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Activity, Briefcase, ClipboardCheck, TrendingUp } from 'lucide-react';
+import { useEffect } from 'react';
 import { useTrendsQuery } from '../hooks/queries';
 import { formatScore } from '../lib/utils';
 import { useToast } from '../contexts/ToastContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const fallbackHistory = [
   { name: 'Week 1', ats: 64, match: 58 },
@@ -16,6 +19,7 @@ const fallbackHistory = [
 
 export function Analytics() {
   const { addToast } = useToast();
+  const { isAuthenticated } = useAuth();
   const trendsQuery = useTrendsQuery();
   const trends = trendsQuery.data || {
     ats: { window_days: 30, count: 14, average: 78, min: 64, max: 92 },
@@ -23,6 +27,21 @@ export function Analytics() {
     history: fallbackHistory,
   };
   const chartData = trends.history.length ? trends.history : fallbackHistory;
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      trendsQuery.refetch();
+    }
+  }, [isAuthenticated]);
+
+  const hasShownError = React.useRef(false);
+
+  useEffect(() => {
+    if (trendsQuery.error && !hasShownError.current) {
+      addToast(trendsQuery.error, 'info');
+      hasShownError.current = true;
+    }
+  }, [trendsQuery.error, addToast]);
 
   const summaryCards: { label: string; value: string | number; sublabel: string; icon: ElementType; tone: string; bg: string }[] = [
     { label: 'ATS scans', value: trends.ats.count, sublabel: `${trends.ats.window_days}-day window`, icon: ClipboardCheck, tone: 'text-primary-500', bg: 'bg-primary-500/10' },

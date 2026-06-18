@@ -365,25 +365,13 @@ def create_app(overridden_settings=None) -> FastAPI:
     def interview_generate(req: _InterviewReq, request: Request, payload: Optional[Dict] = Depends(_current_user)):
         validate_input("company", req.company)
         validate_input("role", req.role)
-        if not HAS_OPENAI or not settings.OPENAI_API_KEY:
-            fb = _load_fallback("company_research.json")
-            return {
-                "company": req.company, "role": req.role,
-                "technical_questions": [{"question": q, "category": "technical", "difficulty": "medium"}
-                    for q in fb.get("technical_questions", ["Walk through your problem-solving approach.", "How would you optimize this system?"])],
-                "behavioral_questions": [{"question": q, "category": "behavioral", "difficulty": "medium"}
-                    for q in fb.get("behavioral_questions", ["Tell me about a time you led a team.", "Describe handling ambiguity."])],
-                "company_specific_questions": [{"question": q, "category": "company", "difficulty": "medium"}
-                    for q in fb.get("company_specific_questions", [f"Why {req.company}?", "What do you know about our culture?"])],
-                "preparation_tips": fb.get("preparation_tips", ["Use STAR method.", "Prepare 2-3 project stories with metrics."]),
-            }
         try:
-            module = InterviewPrepModule(provider="openai")
+            module = InterviewPrepModule(provider="openrouter")
             report = module.generate(req.company, req.role, req.job_description)
             return report.model_dump()
         except Exception as exc:
             logger.error("interview_error error=%s", exc)
-            raise HTTPException(status_code=502, detail="AI provider error")
+            raise HTTPException(status_code=503, detail="Interview service temporarily unavailable")
 
     # ---- Career ----
     class _CareerReq(BaseModel):
@@ -395,24 +383,56 @@ def create_app(overridden_settings=None) -> FastAPI:
     def career_roadmap(req: _CareerReq, request: Request, payload: Optional[Dict] = Depends(_current_user)):
         validate_input("target_role", req.target_role)
         current_skills = [s.strip() for s in req.current_skills if s and str(s).strip()][:20]
-        if not HAS_OPENAI or not settings.OPENAI_API_KEY:
-            return {
-                "current_role": current_skills[0] if current_skills else "Current",
-                "target_role": req.target_role,
-                "skill_progressions": [
-                    {"skill": s, "current_level": 40.0, "target_level": 90.0, "recommended_actions": ["Online course", "Practice projects"]}
-                    for s in current_skills[:8]
-                ],
-                "estimated_timeline_months": 12,
-                "salary_progression": {"entry": 60000, "mid": 85000, "senior": 120000, "currency": "USD"},
-            }
         try:
-            dashboard = CareerDashboard(provider="openai")
+            dashboard = CareerDashboard(provider="openrouter")
             roadmap = dashboard.roadmap(current_skills, req.target_role, req.context)
             return roadmap.model_dump()
         except Exception as exc:
             logger.error("career_error error=%s", exc)
-            raise HTTPException(status_code=502, detail="AI provider error")
+            raise HTTPException(status_code=503, detail="Career roadmap service temporarily unavailable")
+
+    # ---- Market Intelligence ----
+    from dataclasses import asdict
+
+    @application.get("/api/market/jobs")
+    def market_jobs(title: str = ""):
+        from ai_career_platform.services.job_collector import job_collector
+        if not title:
+            return {"source": [], "fetched_at": datetime.now(timezone.utc).isoformat(), "confidence": 0, "data": [], "error": "Title parameter required"}
+        try:
+            jobs = job_collector.collect_jobs(title)
+            return {"source": ["remoteok"], "fetched_at": datetime.now(timezone.utc).isoformat(), "confidence": 0.8 if jobs else 0, "data": [asdict(j) for j in jobs], "error": None if jobs else "No jobs found"}
+        except Exception as e:
+            logger.error("market_jobs error=%s", e)
+            return {"source": [], "fetched_at": datetime.now(timezone.utc).isoformat(), "confidence": 0, "data": [], "error": "Market data service unavailable"}
+
+    @application.get("/api/market/skills")
+    def market_skills(title: str = ""):
+        from ai_career_platform.services.job_collector import job_collector
+        from ai_career_platform.services.skill_demand import skill_demand_service
+        if not title:
+            return {"source": [], "fetched_at": datetime.now(timezone.utc).isoformat(), "confidence": 0, "data": {}, "error": "Title parameter required"}
+        try:
+            jobs = job_collector.collect_jobs(title)
+            demand = skill_demand_service.analyze_demand(jobs)
+            return {"source": ["remoteok"], "fetched_at": datetime.now(timezone.utc).isoformat(), "confidence": 0.8 if demand else 0, "data": {k: asdict(v) for k, v in demand.items()}, "error": None}
+        except Exception as e:
+            logger.error("market_skills error=%s", e)
+            return {"source": [], "fetched_at": datetime.now(timezone.utc).isoformat(), "confidence": 0, "data": {}, "error": "Market data service unavailable"}
+
+    @application.get("/api/market/trends")
+    def market_trends(title: str = ""):
+        from ai_career_platform.services.job_collector import job_collector
+        from ai_career_platform.services.skill_demand import market_trend_service
+        if not title:
+            return {"source": [], "fetched_at": datetime.now(timezone.utc).isoformat(), "confidence": 0, "data": None, "error": "Title parameter required"}
+        try:
+            jobs = job_collector.collect_jobs(title)
+            trend = market_trend_service.analyze_trends(jobs, title)
+            return {"source": ["remoteok"], "fetched_at": datetime.now(timezone.utc).isoformat(), "confidence": 0.8 if jobs else 0, "data": asdict(trend), "error": None}
+        except Exception as e:
+            logger.error("market_trends error=%s", e)
+            return {"source": [], "fetched_at": datetime.now(timezone.utc).isoformat(), "confidence": 0, "data": None, "error": "Market data service unavailable"}
 
     # ---- Analytics ----
     class _AnalyticsEventReq(BaseModel):
@@ -434,7 +454,7 @@ def create_app(overridden_settings=None) -> FastAPI:
     @application.post("/api/security/scan")
     def security_scan(request: Request, text: Dict[str, str], payload: Dict = Depends(_require_auth)):
         raw = text.get("text", "") or ""
-        if len(raw) > settings.MAX_INPUT_LENGTH if hasattr(settings, "MAX_INPUT_LENGTH") else 50000:
+        if len(raw) > (settings.MAX_INPUT_LENGTH if hasattr(settings, "MAX_INPUT_LENGTH") else 50000):
             raise HTTPException(status_code=413, detail="Input too large")
         findings = SecretScanner.scan(raw)
         redacted = redact(raw)
@@ -455,7 +475,7 @@ def create_app(overridden_settings=None) -> FastAPI:
             "anthropic": {"installed": True, "configured": bool(settings.ANTHROPIC_API_KEY), "status": "ok" if settings.ANTHROPIC_API_KEY else "unavailable"},
             "gemini": {"installed": True, "configured": bool(settings.GEMINI_API_KEY), "status": "ok" if settings.GEMINI_API_KEY else "unavailable"},
             "ollama": {"installed": True, "configured": True, "status": "ok"},
-            "fallback": {"available": all((_output / f).exists() for f in ["job_analysis.json", "resume_optimization.json", "company_research.json"])},
+            "openrouter": {"installed": True, "configured": bool(getattr(settings, "OPENROUTER_API_KEY", "")), "status": "ok" if getattr(settings, "OPENROUTER_API_KEY", "") else "unavailable"},
         }
 
     # ---- Static ----

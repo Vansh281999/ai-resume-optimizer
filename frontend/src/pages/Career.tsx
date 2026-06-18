@@ -104,14 +104,14 @@ export function Career() {
                 <h3 className="text-xl font-black">Skill progressions</h3>
               </div>
               <div className="space-y-5">
-                {result.skill_progressions.map((progression) => {
+{result.skill_progressions.map((progression) => {
                   const currentPercent = toPercent(progression.current_level);
                   const targetPercent = toPercent(progression.target_level);
                   return (
-                    <div key={progression.skill} className="rounded-3xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-950">
+                    <div key={progression.skill_name} className="rounded-3xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-950">
                       <div className="mb-4 flex items-start justify-between gap-4">
                         <div>
-                          <h4 className="text-lg font-black">{progression.skill}</h4>
+                          <h4 className="text-lg font-black">{progression.skill_name}</h4>
                           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Current {progression.current_level} · Target {progression.target_level}</p>
                         </div>
                         <span className="rounded-full bg-primary-600 px-3 py-1 text-xs font-black text-white">Grow</span>
@@ -123,37 +123,43 @@ export function Career() {
                         <div className="h-full rounded-full bg-emerald-500" style={{ width: `${currentPercent}%` }}></div>
                       </div>
 <ul className="mt-4 space-y-2">
-                         {(progression.recommended_actions || []).map((action) => (
-                           <li key={action} className="flex items-start gap-3 text-sm font-semibold leading-6 text-slate-700 dark:text-slate-200">
-                             <Sparkles className="mt-0.5 size-4 shrink-0 text-primary-500" />
-                             {action}
-                           </li>
-                         ))}
-                       </ul>
+                          {(progression.learning_resources || []).map((action) => (
+                            <li key={action} className="flex items-start gap-3 text-sm font-semibold leading-6 text-slate-700 dark:text-slate-200">
+                              <Sparkles className="mt-0.5 size-4 shrink-0 text-primary-500" />
+                              {action}
+                            </li>
+                          ))}
+                        </ul>
                     </div>
                   );
                 })}
               </div>
             </div>
 
-            <div className="glass-card">
-              <div className="mb-5 flex items-center gap-3">
-                <TrendingUp className="size-6 text-emerald-500" />
-                <h3 className="text-xl font-black">Salary progression</h3>
-              </div>
-              <div className="grid gap-4 md:grid-cols-3">
-                {[
-                  ['Entry', result.salary_progression.entry],
-                  ['Mid', result.salary_progression.mid],
-                  ['Senior', result.salary_progression.senior],
-                ].map(([label, value]) => (
-                  <div key={label} className="rounded-3xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900 dark:bg-emerald-950">
-                    <p className="text-sm font-bold text-emerald-800 dark:text-emerald-200">{label}</p>
-                    <p className="mt-2 text-2xl font-black text-emerald-950 dark:text-emerald-50">{currency(value, result.salary_progression.currency)}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
+{result.salary_progression.entry && result.salary_progression.mid && result.salary_progression.senior ? (
+           <div className="glass-card">
+             <div className="mb-5 flex items-center gap-3">
+               <TrendingUp className="size-6 text-emerald-500" />
+               <h3 className="text-xl font-black">Salary progression</h3>
+             </div>
+             <div className="grid gap-4 md:grid-cols-3">
+               {[
+                 ['Entry', result.salary_progression.entry],
+                 ['Mid', result.salary_progression.mid],
+                 ['Senior', result.salary_progression.senior],
+               ].map(([label, value]) => (
+                 <div key={label} className="rounded-3xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900 dark:bg-emerald-950">
+                   <p className="text-sm font-bold text-emerald-800 dark:text-emerald-200">{label}</p>
+                   <p className="mt-2 text-2xl font-black text-emerald-950 dark:text-emerald-50">{currency(value, result.salary_progression.currency)}</p>
+                 </div>
+               ))}
+             </div>
+           </div>
+         ) : (
+           <div className="glass-card">
+             <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Salary data temporarily unavailable. Add more specific role details or try again later.</p>
+           </div>
+         )}
           </>
         ) : (
           <div className="glass-card">

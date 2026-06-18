@@ -16,10 +16,18 @@ function getInitialTheme(): Theme {
   if (storedTheme === 'light' || storedTheme === 'dark') {
     return storedTheme;
   }
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  if (typeof window !== 'undefined' && window.matchMedia) {
+    try {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    } catch {
+      return 'light';
+    }
+  }
+  return 'light';
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
+  console.log('ThemeProvider mounted');
   const [theme, setThemeState] = useState<Theme>(getInitialTheme);
 
   useEffect(() => {
