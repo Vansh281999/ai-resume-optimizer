@@ -149,7 +149,7 @@ export function InterviewPrep() {
     }
   };
 
-  const generateAllAnswers = async (questions: QuestionItem[], kind: string) => {
+  const generateAllAnswers = async (questions: QuestionItem[], kind: 'technical' | 'behavioral' | 'company') => {
     setBulkGenerating(true);
     for (const item of questions) {
       if (!item.question) continue;
