@@ -129,7 +129,7 @@ def create_app(overridden_settings=None) -> FastAPI:
     _allowed_ext = settings.allowed_upload_extensions_set if hasattr(settings, "allowed_upload_extensions_set") else {".pdf", ".docx", ".txt"}
 
     def _hash_pw(password: str) -> str:
-        return _pwd_context.hash(password)
+        return _pwd_context.hash(password[:72])
 
     def _verify_pw(plain: str, hashed: str) -> bool:
         try:
