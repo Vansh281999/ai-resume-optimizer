@@ -1,13 +1,22 @@
 from __future__ import annotations
+import os
+from pathlib import Path
 from typing import TYPE_CHECKING
 
+from dotenv import load_dotenv
 from alembic import context
 from sqlalchemy import engine_from_config, pool
+
+_env_path = Path(__file__).resolve().parents[1] / ".env"
+load_dotenv(dotenv_path=str(_env_path) if _env_path.exists() else ".env", override=True)
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import Connection
 
 config = context.config
+
+if os.getenv("DATABASE_URL"):
+    config.set_main_option("sqlalchemy.url", os.getenv("DATABASE_URL"))
 
 target_metadata = None
 
