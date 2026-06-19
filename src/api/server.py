@@ -119,7 +119,6 @@ def create_app(overridden_settings=None) -> FastAPI:
     def _startup():
         _init_db()
 
-    _pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     _oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login", auto_error=False)
     _access_hours = settings.get("ACCESS_TOKEN_EXPIRE_HOURS", 24) if isinstance(settings, dict) else getattr(settings, "ACCESS_TOKEN_EXPIRE_HOURS", 24) or 24
     _reset_hours = 1
