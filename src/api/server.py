@@ -119,7 +119,12 @@ def create_app(overridden_settings=None) -> FastAPI:
     def _startup():
         _init_db()
 
+    _pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     _oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login", auto_error=False)
+    _access_hours = settings.get("ACCESS_TOKEN_EXPIRE_HOURS", 24) if isinstance(settings, dict) else getattr(settings, "ACCESS_TOKEN_EXPIRE_HOURS", 24) or 24
+    _reset_hours = 1
+    _max_upload = settings.MAX_UPLOAD_SIZE_BYTES if hasattr(settings, "MAX_UPLOAD_SIZE_BYTES") else 10 * 1024 * 1024
+    _allowed_ext = settings.allowed_upload_extensions_set if hasattr(settings, "allowed_upload_extensions_set") else {".pdf", ".docx", ".txt"}
 
     def _hash_pw(password: str) -> str:
         return bcrypt.hashpw(password[:72].encode(), bcrypt.gensalt()).decode()
