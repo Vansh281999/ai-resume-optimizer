@@ -673,9 +673,9 @@ def create_app(overridden_settings=None) -> FastAPI:
             raise HTTPException(status_code=400, detail="Complete onboarding first")
         form = None
         try:
-            form = request.form()
+            form = await request.form()
             file = None
-            for key, value in await form.items():
+            for key, value in form.items():
                 if hasattr(value, "filename") and value.filename:
                     file = value
                     break
@@ -708,9 +708,9 @@ def create_app(overridden_settings=None) -> FastAPI:
         from ai_career_platform.services.resume_parser import ResumeParser
         form = None
         try:
-            form = request.form()
+            form = await request.form()
             file = None
-            for key, value in await form.items():
+            for key, value in form.items():
                 if hasattr(value, "filename") and value.filename:
                     file = value
                     break
@@ -735,9 +735,9 @@ def create_app(overridden_settings=None) -> FastAPI:
         from ai_career_platform.db.models import UserProfile, ResumeVersion
         from ai_career_platform.services.resume_parser import ResumeParser
         try:
-            form = request.form()
+            form = await request.form()
             file = None
-            for key, value in await form.items():
+            for key, value in form.items():
                 if hasattr(value, "filename") and value.filename:
                     file = value
                     break
