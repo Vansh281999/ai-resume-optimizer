@@ -18,8 +18,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from pydantic import ValidationError as PydanticValidationError
 from jose import JWTError, jwt, ExpiredSignatureError
-from passlib.context import CryptContext
-from passlib.exc import UnknownHashError
+import bcrypt
+import bcrypt
 from sqlalchemy.orm import Session
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "src"))
@@ -119,22 +119,15 @@ def create_app(overridden_settings=None) -> FastAPI:
     def _startup():
         _init_db()
 
-    _pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     _oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login", auto_error=False)
-    _secret = settings.SECRET_KEY
-    _algorithm = "HS256"
-    _access_hours = settings.get("ACCESS_TOKEN_EXPIRE_HOURS", 24) if isinstance(settings, dict) else getattr(settings, "ACCESS_TOKEN_EXPIRE_HOURS", 24) or 24
-    _reset_hours = 1
-    _max_upload = settings.MAX_UPLOAD_SIZE_BYTES if hasattr(settings, "MAX_UPLOAD_SIZE_BYTES") else 10 * 1024 * 1024
-    _allowed_ext = settings.allowed_upload_extensions_set if hasattr(settings, "allowed_upload_extensions_set") else {".pdf", ".docx", ".txt"}
 
     def _hash_pw(password: str) -> str:
-        return _pwd_context.hash(password[:72])
+        return bcrypt.hashpw(password[:72].encode(), bcrypt.gensalt()).decode()
 
     def _verify_pw(plain: str, hashed: str) -> bool:
         try:
-            return _pwd_context.verify(plain, hashed)
-        except UnknownHashError:
+            return bcrypt.checkpw(plain.encode(), hashed.encode())
+        except (ValueError, TypeError):
             return False
 
     def _create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
