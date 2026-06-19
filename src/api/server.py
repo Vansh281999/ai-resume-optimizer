@@ -666,7 +666,7 @@ def create_app(overridden_settings=None) -> FastAPI:
         return _row_to_dict(item)
 
     @application.post("/api/profile/upload-resume")
-    def upload_resume(request: Request, payload: Dict = Depends(_require_auth), db: Session = Depends(get_db)):
+    async def upload_resume(request: Request, payload: Dict = Depends(_require_auth), db: Session = Depends(get_db)):
         from ai_career_platform.db.models import UserProfile, ResumeVersion
         profile = db.query(UserProfile).filter(UserProfile.user_id == payload.get("sub")).first()
         if not profile:
@@ -704,7 +704,7 @@ def create_app(overridden_settings=None) -> FastAPI:
             raise HTTPException(status_code=400, detail="Invalid upload")
 
     @application.post("/api/profile/parse-resume")
-    def parse_resume_endpoint(request: Request, payload: Dict = Depends(_require_auth)):
+    async def parse_resume_endpoint(request: Request, payload: Dict = Depends(_require_auth)):
         from ai_career_platform.services.resume_parser import ResumeParser
         form = None
         try:
@@ -731,7 +731,7 @@ def create_app(overridden_settings=None) -> FastAPI:
             raise HTTPException(status_code=400, detail=str(exc))
 
     @application.post("/api/profile/compare-resume")
-    def compare_resume(request: Request, payload: Dict = Depends(_require_auth), db: Session = Depends(get_db)):
+    async def compare_resume(request: Request, payload: Dict = Depends(_require_auth), db: Session = Depends(get_db)):
         from ai_career_platform.db.models import UserProfile, ResumeVersion
         from ai_career_platform.services.resume_parser import ResumeParser
         try:
