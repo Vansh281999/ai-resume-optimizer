@@ -4,6 +4,7 @@ export interface User {
   id: number | string;
   name: string;
   email: string;
+  onboarded?: boolean;
 }
 
 export interface AuthResponse {

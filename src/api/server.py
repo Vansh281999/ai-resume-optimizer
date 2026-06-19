@@ -439,6 +439,143 @@ def create_app(overridden_settings=None) -> FastAPI:
             logger.error("interview_answer_error error=%s", exc)
             raise HTTPException(status_code=503, detail="Answer generation unavailable")
 
+    # ---- Profile ----
+    class _ProfileUpdateReq(BaseModel):
+        full_name: Optional[str] = None
+        email: Optional[str] = None
+        phone: Optional[str] = None
+        location: Optional[str] = None
+        linkedin_url: Optional[str] = None
+        github_url: Optional[str] = None
+        portfolio_url: Optional[str] = None
+        headline: Optional[str] = None
+        summary: Optional[str] = None
+        career_objective: Optional[str] = None
+
+    class _ProfileEducationReq(BaseModel):
+        id: Optional[str] = None
+        degree: Optional[str] = None
+        specialization: Optional[str] = None
+        institution: Optional[str] = None
+        start_date: Optional[str] = None
+        end_date: Optional[str] = None
+        cgpa: Optional[str] = None
+        description: Optional[str] = None
+
+    class _ProfileExperienceReq(BaseModel):
+        id: Optional[str] = None
+        title: Optional[str] = None
+        company: Optional[str] = None
+        location: Optional[str] = None
+        start_date: Optional[str] = None
+        end_date: Optional[str] = None
+        responsibilities: Optional[str] = None
+        achievements: Optional[str] = None
+
+    class _ProfileProjectReq(BaseModel):
+        id: Optional[str] = None
+        project_name: Optional[str] = None
+        description: Optional[str] = None
+        technologies: Optional[str] = None
+        github_url: Optional[str] = None
+        live_url: Optional[str] = None
+        start_date: Optional[str] = None
+        end_date: Optional[str] = None
+
+    class _ProfileSkillReq(BaseModel):
+        category: Optional[str] = None
+        skill_name: Optional[str] = None
+
+    class _ProfileCertificationReq(BaseModel):
+        id: Optional[str] = None
+        certification_name: Optional[str] = None
+        issuer: Optional[str] = None
+        issue_date: Optional[str] = None
+        expiry_date: Optional[str] = None
+        credential_url: Optional[str] = None
+
+    class _ProfileJobPrefReq(BaseModel):
+        preferred_roles: Optional[str] = None
+        preferred_locations: Optional[str] = None
+        work_mode: Optional[str] = None
+        expected_salary_min: Optional[float] = None
+        expected_salary_max: Optional[float] = None
+
+    class _EducationPatchReq(BaseModel):
+        item: _ProfileEducationReq
+
+    class _ExperiencePatchReq(BaseModel):
+        item: _ProfileExperienceReq
+
+    class _ProjectPatchReq(BaseModel):
+        item: _ProfileProjectReq
+
+    class _SkillPatchReq(BaseModel):
+        item: _ProfileSkillReq
+
+    class _CertificationPatchReq(BaseModel):
+        item: _ProfileCertificationReq
+
+    class _JobPrefPatchReq(BaseModel):
+        item: _ProfileJobPrefReq
+
+    class _OnboardingStatusReq(BaseModel):
+        onboarded: bool
+
+    @application.get("/api/profile")
+    def get_profile(payload: Dict = Depends(_require_auth), db: Session = Depends(get_db)):
+        from ai_career_platform.db.models import UserProfile, Education, Experience, Project, Skill, Certification, JobPreference
+        profile = db.query(UserProfile).filter(UserProfile.user_id == payload.get("sub")).first()
+        if not profile:
+            return {
+                "profile": None,
+                "completeness": 0,
+                "onboarded": False,
+                "education": [],
+                "experience": [],
+                "projects": [],
+                "skills": [],
+                "certifications": [],
+                "job_preferences": None,
+            }
+        def _row_to_dict(obj):
+            if hasattr(obj, "model_dump"):
+                return obj.model_dump()
+            return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
+        return {
+            "profile": _row_to_dict(profile),
+            "completeness": profile.completion_score,
+            "onboarded": True,
+            "education": [_row_to_dict(e) for e in db.query(Education).filter(Education.profile_id == profile.id).all()],
+            "experience": [_row_to_dict(e) for e in db.query(Experience).filter(Experience.profile_id == profile.id).all()],
+            "projects": [_row_to_dict(p) for p in db.query(Project).filter(Project.profile_id == profile.id).all()],
+            "skills": [_row_to_dict(s) for s in db.query(Skill).filter(Skill.profile_id == profile.id).all()],
+            "certifications": [_row_to_dict(c) for c in db.query(Certification).filter(Certification.profile_id == profile.id).all()],
+            "job_preferences": _row_to_dict(db.query(JobPreference).filter(JobPreference.profile_id == profile.id).first()) if db.query(JobPreference).filter(JobPreference.profile_id == profile.id).first() else None,
+        }
+
+    @application.put("/api/profile")
+    def update_profile(req: _ProfileUpdateReq, payload: Dict = Depends(_require_auth), db: Session = Depends(get_db)):
+        from ai_career_platform.db.models import UserProfile
+        profile = db.query(UserProfile).filter(UserProfile.user_id == payload.get("sub")).first()
+        if not profile:
+            profile = UserProfile(id=f"profile_{uuid.uuid4().hex}", user_id=payload.get("sub"))
+            db.add(profile)
+        updates = req.model_dump(exclude_unset=True)
+        for field, value in updates.items():
+            setattr(profile, field, value)
+        profile.completion_score = _calculate_completion(profile)
+        db.commit()
+        db.refresh(profile)
+        return {"profile": _profile_to_dict(profile), "completeness": profile.completion_score, "onboarded": True}
+
+    def _assert_profile_owner(profile_id: str, payload: Dict, db: Session) -> UserProfile:
+        from ai_career_platform.db.models import UserProfile
+        profile = db.get(UserProfile, profile_id)
+        if not profile or profile.user_id != payload.get("sub"):
+            raise HTTPException(status_code=404, detail="Profile not found")
+        return profile
+
     # ---- Career ----
     class _CareerReq(BaseModel):
         current_skills: List[str]

@@ -16,7 +16,11 @@ if TYPE_CHECKING:
 config = context.config
 
 if os.getenv("DATABASE_URL"):
-    config.set_main_option("sqlalchemy.url", os.getenv("DATABASE_URL"))
+    url = os.getenv("DATABASE_URL")
+    cfg_path = Path(__file__).resolve().parent / "alembic.ini"
+    text = cfg_path.read_text()
+    text = text.replace("sqlalchemy.url = sqlite:///./career_platform.db", f"sqlalchemy.url = {url}")
+    cfg_path.write_text(text)
 
 target_metadata = None
 

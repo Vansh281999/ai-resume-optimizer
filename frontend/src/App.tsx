@@ -9,6 +9,8 @@ import { Landing } from './pages/Landing';
 import { Login } from './pages/Login';
 import { Settings } from './pages/Settings';
 import { Signup } from './pages/Signup';
+import Onboarding from './pages/Onboarding';
+import ProfileSettings from './pages/ProfileSettings';
 
 const Analyzer = lazy(() => import('./pages/Analyzer').then(m => ({ default: m.Analyzer })));
 const Career = lazy(() => import('./pages/Career').then(m => ({ default: m.Career })));
@@ -18,8 +20,8 @@ const AiSettings = lazy(() => import('./pages/AiSettings').then(m => ({ default:
 const HealthDashboard = lazy(() => import('./pages/HealthDashboard').then(m => ({ default: m.HealthDashboard })));
 const MarketIntelligence = lazy(() => import('./pages/MarketIntelligence').then(m => ({ default: m.MarketIntelligence })));
 
-function ProtectedRoute({ children }: { children: ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+function ProtectedRoute({ children, requireOnboarding = true }: { children: ReactNode; requireOnboarding?: boolean }) {
+  const { isAuthenticated, isLoading, user } = useAuth();
 
   if (isLoading) {
     return (
@@ -33,16 +35,24 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
     return <Navigate to="/login" replace />;
   }
 
+  if (requireOnboarding && !user?.onboarded) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  if (!requireOnboarding && user?.onboarded) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return <Layout><Suspense fallback={<div className="flex min-h-screen items-center justify-center"><p className="text-sm font-semibold">Loading...</p></div>}>{children}</Suspense></Layout>;
 }
 
 export default function App() {
-  console.log('App rendering');
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
+      <Route path="/onboarding" element={<ProtectedRoute requireOnboarding={false}><Onboarding /></ProtectedRoute>} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/analyzer" element={<ProtectedRoute><Analyzer /></ProtectedRoute>} />
       <Route path="/job-match" element={<ProtectedRoute><JobMatch /></ProtectedRoute>} />
@@ -50,6 +60,7 @@ export default function App() {
       <Route path="/career" element={<ProtectedRoute><Career /></ProtectedRoute>} />
       <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+      <Route path="/profile" element={<ProtectedRoute><ProfileSettings /></ProtectedRoute>} />
       <Route path="/ai-settings" element={<ProtectedRoute><AiSettings /></ProtectedRoute>} />
       <Route path="/health" element={<ProtectedRoute><HealthDashboard /></ProtectedRoute>} />
       <Route path="/market" element={<ProtectedRoute><MarketIntelligence /></ProtectedRoute>} />
