@@ -166,6 +166,19 @@ export async function generateInterview(
   return response.data;
 }
 
+export async function generateAnswer(
+  question: string,
+  category: 'technical' | 'behavioral' | 'company' | 'interview',
+  context?: Record<string, string>,
+): Promise<string> {
+  const response = await api.post<{ answer: string }>('/interview/answer', {
+    question,
+    category,
+    context,
+  });
+  return response.data.answer;
+}
+
 export async function getCareerRoadmap(
   currentSkills: string[],
   targetRole: string,

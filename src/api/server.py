@@ -34,6 +34,7 @@ from ai_career_platform.core.ats_engine import ATSScoringEngine
 from ai_career_platform.core.job_matcher import JobMatcher
 from ai_career_platform.interview.interview_module import InterviewPrepModule
 from ai_career_platform.career.career_dashboard import CareerDashboard
+from ai_career_platform.ai_providers.factory import get_llm_provider, get_multi_provider
 from ai_career_platform.analytics.analytics_tracker import AnalyticsTracker
 from ai_career_platform.security import SecretScanner
 from ai_career_platform.utils.validators import redact, validate_input
@@ -108,7 +109,7 @@ def create_app(overridden_settings=None) -> FastAPI:
 
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=[o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")],
+        allow_origin_regex=r"http://localhost:\d+",
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
@@ -397,6 +398,11 @@ def create_app(overridden_settings=None) -> FastAPI:
         role: str
         job_description: str = ""
 
+    class _InterviewAnswerReq(BaseModel):
+        question: str
+        category: str = "interview"
+        context: str = ""
+
     @application.post("/api/interview/generate")
     def interview_generate(req: _InterviewReq, request: Request, payload: Optional[Dict] = Depends(_current_user)):
         validate_input("company", req.company)
@@ -408,6 +414,31 @@ def create_app(overridden_settings=None) -> FastAPI:
         except Exception as exc:
             logger.error("interview_error error=%s", exc)
             raise HTTPException(status_code=503, detail="Interview service temporarily unavailable")
+
+    class _InterviewAnswerReq(BaseModel):
+        question: str
+        category: str = "interview"
+        context: Dict[str, str] = Field(default_factory=dict)
+
+    @application.post("/api/interview/answer")
+    def interview_answer(req: _InterviewAnswerReq, request: Request, payload: Optional[Dict] = Depends(_current_user)):
+        try:
+            provider = get_llm_provider("gemini")
+            context_lines = [f"{k}: {v}" for k, v in (req.context or {}).items() if v]
+            context_text = "\n".join(context_lines) if context_lines else "None provided"
+            prompt = (
+                "You are an interview coach answering a candidate's question. "
+                "Return a concise, actionable, personalized answer grounded in the provided context. "
+                "If the question asks for code or an example, provide a short concrete example.\n\n"
+                f"Question:\n{req.question}\n\n"
+                f"Category:\n{req.category}\n\n"
+                f"Context:\n{context_text}"
+            )
+            answer = provider.generate([{"role": "user", "content": prompt}], timeout=90, retries=2)
+            return {"answer": answer}
+        except Exception as exc:
+            logger.error("interview_answer_error error=%s", exc)
+            raise HTTPException(status_code=503, detail="Answer generation unavailable")
 
     # ---- Career ----
     class _CareerReq(BaseModel):
