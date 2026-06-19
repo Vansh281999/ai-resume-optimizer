@@ -143,13 +143,22 @@ export default function ProfileSettings() {
 
   const removeItem = (section: string, id?: string) => {
     if (!id) return;
-    const setter = (fn: (items: any[]) => any[]) => fn((current) => current.filter((item: any) => item.id !== id));
     switch (section) {
-      case 'education': setEducation((current) => current.filter((item) => (item.id || item.id) !== id)); break;
-      case 'experience': setExperience((current) => current.filter((item) => (item.id || item.id) !== id)); break;
-      case 'projects': setProjects((current) => current.filter((item) => (item.id || item.id) !== id)); break;
-      case 'skills': setSkills((current) => current.filter((item) => (item.id || item.id) !== id)); break;
-      case 'certifications': setCertifications((current) => current.filter((item) => (item.id || item.id) !== id)); break;
+      case 'education':
+        setEducation((prev: any[]) => prev.filter((item: any) => (item.id || '') !== id));
+        break;
+      case 'experience':
+        setExperience((prev: any[]) => prev.filter((item: any) => (item.id || '') !== id));
+        break;
+      case 'projects':
+        setProjects((prev: any[]) => prev.filter((item: any) => (item.id || '') !== id));
+        break;
+      case 'skills':
+        setSkills((prev: any[]) => prev.filter((item: any) => (item.id || '') !== id));
+        break;
+      case 'certifications':
+        setCertifications((prev: any[]) => prev.filter((item: any) => (item.id || '') !== id));
+        break;
       default: break;
     }
     addToast('Removed (refresh to sync)', 'info');
