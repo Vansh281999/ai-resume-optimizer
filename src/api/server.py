@@ -569,7 +569,7 @@ def create_app(overridden_settings=None) -> FastAPI:
         db.refresh(profile)
         return {"profile": _profile_to_dict(profile), "completeness": profile.completion_score, "onboarded": True}
 
-    def _assert_profile_owner(profile_id: str, payload: Dict, db: Session) -> UserProfile:
+    def _assert_profile_owner(profile_id: str, payload: Dict, db: Session):
         from ai_career_platform.db.models import UserProfile
         profile = db.get(UserProfile, profile_id)
         if not profile or profile.user_id != payload.get("sub"):
