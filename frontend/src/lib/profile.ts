@@ -55,3 +55,33 @@ export async function getResumeHistory() {
   const response = await api.get('/profile/resume-history');
   return response.data;
 }
+
+export async function addEducation(payload: Record<string, unknown>) {
+  const response = await api.post('/profile/education', payload);
+  return response.data;
+}
+
+export async function addExperience(payload: Record<string, unknown>) {
+  const response = await api.post('/profile/experience', payload);
+  return response.data;
+}
+
+export async function addProject(payload: Record<string, unknown>) {
+  const response = await api.post('/profile/projects', payload);
+  return response.data;
+}
+
+export async function addSkill(payload: Record<string, unknown>) {
+  const response = await api.post('/profile/skills', payload);
+  return response.data;
+}
+
+export async function addCertification(payload: Record<string, unknown>) {
+  const response = await api.post('/profile/certifications', payload);
+  return response.data;
+}
+
+export async function updateJobPreferences(payload: Record<string, unknown>) {
+  const response = await api.post('/profile/job-preferences', payload);
+  return response.data;
+}

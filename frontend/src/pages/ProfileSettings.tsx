@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Upload, User, Briefcase, Code, FolderGit2, GraduationCap, Award, Target } from 'lucide-react';
+import { FileText, Upload, User, Briefcase, Code, FolderGit2, GraduationCap, Award, Target, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { getProfile, updateProfile, uploadResume, compareResume, getResumeHistory } from '../lib/profile';
+import { getProfile, updateProfile, uploadResume, compareResume, getResumeHistory, addEducation, addExperience, addProject, addSkill, addCertification, updateJobPreferences } from '../lib/profile';
 import ReactMarkdown from 'react-markdown';
 
 type Tab = 'personal' | 'education' | 'experience' | 'projects' | 'skills' | 'certifications' | 'preferences' | 'resume';
@@ -23,10 +23,17 @@ export default function ProfileSettings() {
   const [loading, setLoading] = useState(false);
   const [resumeHistory, setResumeHistory] = useState<any[]>([]);
   const [compareResult, setCompareResult] = useState<any>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     loadProfile();
   }, []);
+
+  const validateEmail = (value: string) => {
+    if (!value) return '';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'Invalid email';
+    return '';
+  };
 
   const loadProfile = async () => {
     setLoading(true);
@@ -48,17 +55,104 @@ export default function ProfileSettings() {
     }
   };
 
+  const validate = (section: string, values: Record<string, unknown>) => {
+    const next: Record<string, string> = {};
+    if (section === 'personal') {
+      const emailErr = validateEmail((values.email as string) || '');
+      if (emailErr) next.email = emailErr;
+      if (!(values.full_name as string)?.trim()) next.full_name = 'Required';
+      if (!(values.email as string)?.trim()) next.email = 'Required';
+    }
+    if (section === 'education') {
+      if (!(values.degree as string)?.trim()) next.degree = 'Required';
+      if (!(values.institution as string)?.trim()) next.institution = 'Required';
+    }
+    if (section === 'experience') {
+      if (!(values.title as string)?.trim()) next.title = 'Required';
+      if (!(values.company as string)?.trim()) next.company = 'Required';
+    }
+    if (section === 'projects') {
+      if (!(values.project_name as string)?.trim()) next.project_name = 'Required';
+    }
+    if (section === 'skills') {
+      if (!(values.skill_name as string)?.trim()) next.skill_name = 'Required';
+      if (!(values.category as string)?.trim()) next.category = 'Required';
+    }
+    if (section === 'certifications') {
+      if (!(values.certification_name as string)?.trim()) next.certification_name = 'Required';
+    }
+    setFormErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
   const saveSection = async (section: string, payload: Record<string, unknown>) => {
+    if (!validate(section, payload)) return;
     setLoading(true);
     try {
       const data = await updateProfile(payload);
       setProfile(data.profile);
       addToast('Saved', 'success');
+      setFormErrors({});
     } catch (err) {
       addToast(err instanceof Error ? err.message : 'Failed to save', 'error');
     } finally {
       setLoading(false);
     }
+  };
+
+  const saveSubResource = async (section: string, payload: Record<string, unknown>) => {
+    if (!validate(section, payload)) return;
+    setLoading(true);
+    try {
+      switch (section) {
+        case 'education':
+          await addEducation(payload);
+          setEducation((current) => [...current, { ...(payload as any), id: `edu_${Date.now()}` }]);
+          break;
+        case 'experience':
+          await addExperience(payload);
+          setExperience((current) => [...current, { ...(payload as any), id: `exp_${Date.now()}` }]);
+          break;
+        case 'projects':
+          await addProject(payload);
+          setProjects((current) => [...current, { ...(payload as any), id: `proj_${Date.now()}` }]);
+          break;
+        case 'skills':
+          await addSkill(payload);
+          setSkills((current) => [...current, { ...(payload as any), id: `skill_${Date.now()}` }]);
+          break;
+        case 'certifications':
+          await addCertification(payload);
+          setCertifications((current) => [...current, { ...(payload as any), id: `cert_${Date.now()}` }]);
+          break;
+        case 'preferences':
+          await updateJobPreferences(payload);
+          setJobPrefs({ ...(jobPrefs || {}), ...(payload as Record<string, unknown>) });
+          break;
+        default:
+          break;
+      }
+      addToast('Saved', 'success');
+      setFormErrors({});
+    } catch (err) {
+      addToast(err instanceof Error ? err.message : 'Failed to save', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const removeItem = (section: string, id?: string) => {
+    if (!id) return;
+    const setter = (fn: (items: any[]) => any[]) => fn((current) => current.filter((item: any) => item.id !== id));
+    switch (section) {
+      case 'education': setEducation((current) => current.filter((item) => (item.id || item.id) !== id)); break;
+      case 'experience': setExperience((current) => current.filter((item) => (item.id || item.id) !== id)); break;
+      case 'projects': setProjects((current) => current.filter((item) => (item.id || item.id) !== id)); break;
+      case 'skills': setSkills((current) => current.filter((item) => (item.id || item.id) !== id)); break;
+      case 'certifications': setCertifications((current) => current.filter((item) => (item.id || item.id) !== id)); break;
+      default: break;
+    }
+    addToast('Removed (refresh to sync)', 'info');
   };
 
   const handleResumeUpload = async (file: File) => {
