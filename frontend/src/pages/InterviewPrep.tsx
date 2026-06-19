@@ -1,6 +1,7 @@
 import { FormEvent, useMemo, useState } from 'react';
 import type { ElementType } from 'react';
 import { Brain, Building2, Lightbulb, MessageCircleQuestion, MessageSquare, Sparkles, Target, UserRound } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { useInterviewMutation } from '../hooks/mutations';
 import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -72,7 +73,9 @@ function QuestionBlock({ title, icon: Icon, items, onGenerateSingle, onGenerateA
                       <Lightbulb className="size-4" />
                       Suggested answer
                     </div>
-                    <p className="mt-2 text-sm leading-7 text-slate-800 dark:text-slate-100">{item.answer}</p>
+                    <div className="prose prose-slate mt-2 max-w-none text-sm leading-7 prose-headings:font-bold prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-1 prose-strong:text-slate-900 prose-code:rounded prose-code:bg-slate-100 prose-code:px-1 prose-code:py-0.5 dark:prose-invert">
+                      <ReactMarkdown>{item.answer}</ReactMarkdown>
+                    </div>
                   </div>
                 ) : null}
               </div>
