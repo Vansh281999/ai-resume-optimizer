@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Building2, FileText, UserRound, Upload } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { getProfile, completeOnboarding, parseResume } from '../lib/profile';
+import { getProfile, completeOnboarding, parseResume, updateProfile } from '../lib/profile';
+import type { User } from '../lib/api';
 
 export default function Onboarding() {
   const { user, setUser } = useAuth();
@@ -52,7 +53,8 @@ export default function Onboarding() {
     try {
       await updateProfile({ ...form });
       await completeOnboarding();
-      setUser({ ...(user || {}), onboarded: true });
+      const updated = { ...(user || { id: Date.now(), name: '', email: '' } as User), onboarded: true } as User;
+      setUser(updated);
       addToast('Profile saved', 'success');
       navigate('/dashboard', { replace: true });
     } catch (err) {

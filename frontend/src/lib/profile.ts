@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { getErrorMessage } from '../utils';
+import { getErrorMessage } from './utils';
 
 const api = axios.create({
   baseURL: `${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}`,
@@ -48,5 +48,10 @@ export async function compareResume(file: File) {
   const formData = new FormData();
   formData.append('file', file);
   const response = await api.post('/profile/compare-resume', formData);
+  return response.data;
+}
+
+export async function getResumeHistory() {
+  const response = await api.get('/profile/resume-history');
   return response.data;
 }

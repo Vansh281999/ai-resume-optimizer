@@ -576,6 +576,195 @@ def create_app(overridden_settings=None) -> FastAPI:
             raise HTTPException(status_code=404, detail="Profile not found")
         return profile
 
+    @application.post("/api/profile/onboarding")
+    def onboarding_status(req: _OnboardingStatusReq, payload: Dict = Depends(_require_auth), db: Session = Depends(get_db)):
+        from ai_career_platform.db.models import UserProfile
+        profile = db.query(UserProfile).filter(UserProfile.user_id == payload.get("sub")).first()
+        if not profile:
+            profile = UserProfile(id=f"profile_{uuid.uuid4().hex}", user_id=payload.get("sub"))
+            db.add(profile)
+        return {"onboarded": bool(req.onboarded)}
+
+    @application.post("/api/profile/education")
+    def add_education(req: _ProfileEducationReq, payload: Dict = Depends(_require_auth), db: Session = Depends(get_db)):
+        from ai_career_platform.db.models import UserProfile, Education
+        profile = db.query(UserProfile).filter(UserProfile.user_id == payload.get("sub")).first()
+        if not profile:
+            raise HTTPException(status_code=400, detail="Complete onboarding first")
+        item = Education(id=f"edu_{uuid.uuid4().hex}", profile_id=profile.id, **req.model_dump(exclude_unset=True))
+        db.add(item)
+        db.commit()
+        db.refresh(item)
+        return _row_to_dict(item)
+
+    @application.post("/api/profile/experience")
+    def add_experience(req: _ProfileExperienceReq, payload: Dict = Depends(_require_auth), db: Session = Depends(get_db)):
+        from ai_career_platform.db.models import UserProfile, Experience
+        profile = db.query(UserProfile).filter(UserProfile.user_id == payload.get("sub")).first()
+        if not profile:
+            raise HTTPException(status_code=400, detail="Complete onboarding first")
+        item = Experience(id=f"exp_{uuid.uuid4().hex}", profile_id=profile.id, **req.model_dump(exclude_unset=True))
+        db.add(item)
+        db.commit()
+        db.refresh(item)
+        return _row_to_dict(item)
+
+    @application.post("/api/profile/projects")
+    def add_project(req: _ProfileProjectReq, payload: Dict = Depends(_require_auth), db: Session = Depends(get_db)):
+        from ai_career_platform.db.models import UserProfile, Project
+        profile = db.query(UserProfile).filter(UserProfile.user_id == payload.get("sub")).first()
+        if not profile:
+            raise HTTPException(status_code=400, detail="Complete onboarding first")
+        item = Project(id=f"proj_{uuid.uuid4().hex}", profile_id=profile.id, **req.model_dump(exclude_unset=True))
+        db.add(item)
+        db.commit()
+        db.refresh(item)
+        return _row_to_dict(item)
+
+    @application.post("/api/profile/skills")
+    def add_skill(req: _ProfileSkillReq, payload: Dict = Depends(_require_auth), db: Session = Depends(get_db)):
+        from ai_career_platform.db.models import UserProfile, Skill
+        profile = db.query(UserProfile).filter(UserProfile.user_id == payload.get("sub")).first()
+        if not profile:
+            raise HTTPException(status_code=400, detail="Complete onboarding first")
+        item = Skill(id=f"skill_{uuid.uuid4().hex}", profile_id=profile.id, **req.model_dump(exclude_unset=True))
+        db.add(item)
+        db.commit()
+        db.refresh(item)
+        return _row_to_dict(item)
+
+    @application.post("/api/profile/certifications")
+    def add_certification(req: _ProfileCertificationReq, payload: Dict = Depends(_require_auth), db: Session = Depends(get_db)):
+        from ai_career_platform.db.models import UserProfile, Certification
+        profile = db.query(UserProfile).filter(UserProfile.user_id == payload.get("sub")).first()
+        if not profile:
+            raise HTTPException(status_code=400, detail="Complete onboarding first")
+        item = Certification(id=f"cert_{uuid.uuid4().hex}", profile_id=profile.id, **req.model_dump(exclude_unset=True))
+        db.add(item)
+        db.commit()
+        db.refresh(item)
+        return _row_to_dict(item)
+
+    @application.post("/api/profile/job-preferences")
+    def add_job_preferences(req: _ProfileJobPrefReq, payload: Dict = Depends(_require_auth), db: Session = Depends(get_db)):
+        from ai_career_platform.db.models import UserProfile, JobPreference
+        profile = db.query(UserProfile).filter(UserProfile.user_id == payload.get("sub")).first()
+        if not profile:
+            raise HTTPException(status_code=400, detail="Complete onboarding first")
+        existing = db.query(JobPreference).filter(JobPreference.profile_id == profile.id).first()
+        if existing:
+            for field, value in req.model_dump(exclude_unset=True).items():
+                setattr(existing, field, value)
+            db.add(existing)
+            db.commit()
+            db.refresh(existing)
+            return _row_to_dict(existing)
+        item = JobPreference(id=f"jp_{uuid.uuid4().hex}", profile_id=profile.id, **req.model_dump(exclude_unset=True))
+        db.add(item)
+        db.commit()
+        db.refresh(item)
+        return _row_to_dict(item)
+
+    @application.post("/api/profile/upload-resume")
+    def upload_resume(request: Request, payload: Dict = Depends(_require_auth), db: Session = Depends(get_db)):
+        from ai_career_platform.db.models import UserProfile, ResumeVersion
+        profile = db.query(UserProfile).filter(UserProfile.user_id == payload.get("sub")).first()
+        if not profile:
+            raise HTTPException(status_code=400, detail="Complete onboarding first")
+        form = None
+        try:
+            form = request.form()
+            file = None
+            for key, value in await form.items():
+                if hasattr(value, "filename") and value.filename:
+                    file = value
+                    break
+                file = value
+            if not file:
+                raise HTTPException(status_code=400, detail="No file uploaded")
+            content = await file.read()
+            if len(content) > _max_upload:
+                raise HTTPException(status_code=413, detail=f"File exceeds max size of {_max_upload//(1024*1024)} MB")
+            version = ResumeVersion(
+                id=f"rv_{uuid.uuid4().hex}",
+                profile_id=profile.id,
+                original_filename=getattr(file, "filename", "upload.bin"),
+                storage_path=None,
+                parsed_json=None,
+                version_number=(db.query(ResumeVersion).filter(ResumeVersion.profile_id == profile.id).count() + 1),
+            )
+            db.add(version)
+            db.commit()
+            db.refresh(version)
+            return {"version": _row_to_dict(version)}
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.error("resume_upload_error error=%s", exc)
+            raise HTTPException(status_code=400, detail="Invalid upload")
+
+    @application.post("/api/profile/parse-resume")
+    def parse_resume_endpoint(request: Request, payload: Dict = Depends(_require_auth)):
+        from ai_career_platform.services.resume_parser import ResumeParser
+        form = None
+        try:
+            form = request.form()
+            file = None
+            for key, value in await form.items():
+                if hasattr(value, "filename") and value.filename:
+                    file = value
+                    break
+                file = value
+            if not file:
+                raise HTTPException(status_code=400, detail="No file uploaded")
+            content = await file.read()
+            if len(content) > _max_upload:
+                raise HTTPException(status_code=413, detail=f"File exceeds max size of {_max_upload//(1024*1024)} MB")
+            text = _extract_text_from_bytes(content, getattr(file, "filename", ""))
+            parser = ResumeParser()
+            parsed = parser.parse(text)
+            return {"parsed": parsed}
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.error("resume_parse_error error=%s", exc)
+            raise HTTPException(status_code=400, detail=str(exc))
+
+    @application.post("/api/profile/compare-resume")
+    def compare_resume(request: Request, payload: Dict = Depends(_require_auth), db: Session = Depends(get_db)):
+        from ai_career_platform.db.models import UserProfile, ResumeVersion
+        from ai_career_platform.services.resume_parser import ResumeParser
+        try:
+            form = request.form()
+            file = None
+            for key, value in await form.items():
+                if hasattr(value, "filename") and value.filename:
+                    file = value
+                    break
+                file = value
+            if not file:
+                raise HTTPException(status_code=400, detail="No file uploaded")
+            content = await file.read()
+            if len(content) > _max_upload:
+                raise HTTPException(status_code=413, detail=f"File exceeds max size of {_max_upload//(1024*1024)} MB")
+            text = _extract_text_from_bytes(content, getattr(file, "filename", ""))
+            parsed = ResumeParser().parse(text)
+            return {"changes": parsed, "current_profile": None}
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.error("resume_compare_error error=%s", exc)
+            raise HTTPException(status_code=400, detail="Failed to compare resume")
+
+    @application.get("/api/profile/resume-history")
+    def resume_history(payload: Dict = Depends(_require_auth), db: Session = Depends(get_db)):
+        from ai_career_platform.db.models import UserProfile, ResumeVersion
+        profile = db.query(UserProfile).filter(UserProfile.user_id == payload.get("sub")).first()
+        if not profile:
+            return {"history": []}
+        versions = db.query(ResumeVersion).filter(ResumeVersion.profile_id == profile.id).order_by(ResumeVersion.uploaded_at.desc()).all()
+        return {"history": [_row_to_dict(v) for v in versions]}
+
     # ---- Career ----
     class _CareerReq(BaseModel):
         current_skills: List[str]
@@ -697,3 +886,30 @@ def create_app(overridden_settings=None) -> FastAPI:
 
 # Module-level app for uvicorn / docker
 app = create_app()
+
+
+def _row_to_dict(obj):
+    if hasattr(obj, "model_dump"):
+        return obj.model_dump()
+    return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
+
+
+def _extract_text_from_bytes(content: bytes, filename: str) -> str:
+    suffix = Path(filename).suffix.lower()
+    if suffix == ".pdf":
+        try:
+            import pdfplumber
+            with pdfplumber.open(io.BytesIO(content)) as pdf:
+                return "\n".join(page.extract_text() or "" for page in pdf.pages)
+        except Exception as exc:
+            raise ValueError(f"PDF extraction failed: {exc}") from exc
+    if suffix in (".docx", ".doc"):
+        try:
+            import docx
+            doc = docx.Document(io.BytesIO(content))
+            return "\n".join(p.text for p in doc.paragraphs if p.text)
+        except Exception as exc:
+            raise ValueError(f"DOCX extraction failed: {exc}") from exc
+    if suffix == ".txt":
+        return content.decode("utf-8", errors="ignore")
+    raise ValueError(f"Unsupported file type: {suffix}")
