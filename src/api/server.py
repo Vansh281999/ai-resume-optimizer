@@ -726,9 +726,12 @@ def create_app(overridden_settings=None) -> FastAPI:
             return {"parsed": parsed}
         except HTTPException:
             raise
-        except Exception as exc:
+        except ValueError as exc:
             logger.error("resume_parse_error error=%s", exc)
             raise HTTPException(status_code=400, detail=str(exc))
+        except Exception as exc:
+            logger.error("resume_parse_error error=%s", exc)
+            raise HTTPException(status_code=503, detail="Resume parser service temporarily unavailable. Please try again later.")
 
     @application.post("/api/profile/compare-resume")
     async def compare_resume(request: Request, payload: Dict = Depends(_require_auth), db: Session = Depends(get_db)):

@@ -30,7 +30,13 @@ class GeminiProvider:
         for attempt in range(retries + 1):
             try:
                 response = requests.post(url, json=payload, timeout=timeout)
-                response.raise_for_status()
+                try:
+                    response.raise_for_status()
+                except requests.HTTPError as exc:
+                    status_code = getattr(exc.response, "status_code", None)
+                    if status_code == 429:
+                        raise RuntimeError("Gemini rate limit exceeded. Please try again later.") from exc
+                    raise RuntimeError(f"Gemini request failed with status {status_code or 'unknown'}.") from exc
                 data = response.json()
                 return data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
             except Exception as e:

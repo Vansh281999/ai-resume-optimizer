@@ -27,9 +27,15 @@ export function parseCommaSeparated(value: string): string[] {
 
 export function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
-    return error.message;
+    return redactSensitiveData(error.message);
   }
   return 'Something went wrong. Please try again.';
+}
+
+function redactSensitiveData(message: string): string {
+  return message
+    .replace(/(key|api[_-]?key|token|secret)=([^&\s<]+)/gi, '$1=<redacted>')
+    .replace(/Bearer\s+[A-Za-z0-9._~+/-]+=*/gi, 'Bearer <redacted>');
 }
 
 export function average(values: number[]): number {

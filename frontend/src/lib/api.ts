@@ -1,4 +1,5 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { getErrorMessage } from './utils';
 
 export interface User {
   id: number | string;
@@ -102,8 +103,8 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError<{ detail?: string; message?: string }>) => {
-    const message = error.response?.data?.detail || error.response?.data?.message || error.message;
-    return Promise.reject(new Error(message));
+    const backendMessage = error.response?.data?.detail || error.response?.data?.message || error.message;
+    return Promise.reject(new Error(getErrorMessage(backendMessage)));
   },
 );
 
