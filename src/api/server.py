@@ -912,4 +912,4 @@ def _extract_text_from_bytes(content: bytes, filename: str) -> str:
             raise ValueError(f"DOCX extraction failed: {exc}") from exc
     if suffix == ".txt":
         return content.decode("utf-8", errors="ignore")
-    raise ValueError(f"Unsupported file type: {suffix}")
+    raise ValueError(f"Unsupported file type: {suffix or 'no extension'}. Upload PDF, DOCX, or TXT.")

@@ -109,8 +109,8 @@ export default function Onboarding() {
         <label className="glass-card flex cursor-pointer flex-col items-center gap-3 py-10">
           <FileText className="size-10 text-slate-400" />
           <span className="font-semibold text-slate-700 dark:text-slate-200">Click to upload resume</span>
-          <span className="text-xs text-slate-500">PDF, DOCX, DOC up to 10MB</span>
-          <input type="file" accept=".pdf,.docx,.doc" className="hidden" onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
+          <span className="text-xs text-slate-500">PDF, DOCX, or TXT up to 10MB</span>
+          <input type="file" accept=".pdf,.docx,.txt" className="hidden" onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
         </label>
         <button className="btn-secondary w-full" onClick={() => setMode('choose')}>Back</button>
       </div>
