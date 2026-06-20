@@ -109,7 +109,7 @@ def create_app(overridden_settings=None) -> FastAPI:
 
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=[o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:5174").split(",") if o.strip()],
+        allow_origins=[o.strip() for o in os.getenv("CORS_ORIGINS", "https://Vansh281999.github.io,https://ai-resume-optimizer-dium.onrender.com,http://localhost:5173,http://localhost:5174").split(",") if o.strip()],
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type", "X-Request-ID"],

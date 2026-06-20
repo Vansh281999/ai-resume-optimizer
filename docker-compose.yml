@@ -17,7 +17,7 @@ services:
       - DATABASE_URL=${DATABASE_URL:-sqlite:///./career_platform.db}
       - DEBUG=${DEBUG:-false}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:5173}
+      - CORS_ORIGINS=${CORS_ORIGINS:-https://Vansh281999.github.io,https://ai-resume-optimizer-dium.onrender.com,http://localhost:5173,http://localhost:5174}
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
