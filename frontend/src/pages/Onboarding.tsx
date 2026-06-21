@@ -80,7 +80,7 @@ export default function Onboarding() {
             <span className="flex size-12 items-center justify-center rounded-2xl bg-primary-500/10 text-primary-600"><Upload /></span>
             <span>
               <span className="block text-lg font-black">Upload Resume</span>
-              <span className="text-sm text-slate-600 dark:text-slate-300">PDF, DOCX, or DOC</span>
+              <span className="text-sm text-slate-600 dark:text-slate-300">PDF, DOCX, or TXT</span>
             </span>
           </button>
           <button

@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="refresh" content="0; url=/ai-resume-optimizer/" />
+    <title>Career OS - AI Career Intelligence</title>
+  </head>
+  <body>
+    <script>
+      const repoPath = '/ai-resume-optimizer';
+      const currentPath = window.location.pathname;
+      const nextPath = currentPath === repoPath || currentPath === repoPath + '/'
+        ? repoPath + '/'
+        : repoPath + currentPath + window.location.search + window.location.hash;
+      window.location.replace(nextPath);
+    </script>
+  </body>
+</html>

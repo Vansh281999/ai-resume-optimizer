@@ -89,21 +89,66 @@ class ResumeParser:
     def parse(self, resume_text: str) -> Dict[str, Any]:
         if not resume_text or not resume_text.strip():
             raise ValueError("Resume text is empty")
-        prompt = (
-            f"{self.system_prompt}\n\n"
-            "Resume text to parse:\n"
-            "--------------------\n"
-            f"{resume_text.strip()}\n"
-            "--------------------\n"
-            "Parse the above resume and return the JSON object."
-        )
-        raw = self.provider.generate(
-            [{"role": "user", "content": prompt}],
-            timeout=120,
-            retries=2,
-        )
-        data = self._extract_json(raw)
-        return self._validate(data)
+        try:
+            prompt = (
+                f"{self.system_prompt}\n\n"
+                "Resume text to parse:\n"
+                "--------------------\n"
+                f"{resume_text.strip()}\n"
+                "--------------------\n"
+                "Parse the above resume and return the JSON object."
+            )
+            raw = self.provider.generate(
+                [{"role": "user", "content": prompt}],
+                timeout=120,
+                retries=2,
+            )
+            data = self._extract_json(raw)
+            return self._validate(data)
+        except Exception:
+            return self._fallback_parse(resume_text)
+
+    def _fallback_parse(self, resume_text: str) -> Dict[str, Any]:
+        lines = [line.strip() for line in resume_text.splitlines() if line.strip()]
+        text = "\n".join(lines)
+        email_match = re.search(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", text)
+        phone_match = re.search(r"(?:\+?\d{1,3}[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}", text)
+        linkedin_match = re.search(r"(?:https?://)?(?:www\.)?linkedin\.com/in/[A-Za-z0-9_-]+/?", text)
+        github_match = re.search(r"(?:https?://)?(?:www\.)?github\.com/[A-Za-z0-9_.-]+/?", text)
+        portfolio_match = re.search(r"(?:https?://)?(?:www\.)?[A-Za-z0-9.-]+\.[A-Za-z]{2,}(?:/[A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]*)?", text)
+
+        personal_info = {
+            "full_name": lines[0] if lines else "",
+            "email": email_match.group(0) if email_match else "",
+            "phone": phone_match.group(0) if phone_match else "",
+            "location": "",
+            "linkedin_url": linkedin_match.group(0) if linkedin_match else "",
+            "github_url": github_match.group(0) if github_match else "",
+            "portfolio_url": portfolio_match.group(0) if portfolio_match and portfolio_match.group(0).lower() not in {linkedin_match.group(0).lower() if linkedin_match else "", github_match.group(0).lower() if github_match else ""} else "",
+        }
+        section_headers = {
+            "education", "experience", "projects", "skills", "certifications", "summary", "objective", "career objective", "profile", "about"
+        }
+        summary_lines = []
+        for line in lines[1:]:
+            normalized = line.lower().rstrip(":")
+            if normalized in section_headers or normalized.endswith(" experience") or normalized.endswith(" education"):
+                break
+            summary_lines.append(line)
+        summary = " ".join(summary_lines)[:1200]
+
+        return self._validate({
+            "personal_info": personal_info,
+            "headline": lines[1] if len(lines) > 1 else "",
+            "summary": summary,
+            "career_objective": "",
+            "education": [],
+            "experience": [],
+            "projects": [],
+            "skills": {},
+            "certifications": [],
+            "job_preferences": {},
+        })
 
     def _extract_json(self, raw: str) -> Dict[str, Any]:
         text = raw.strip()
