@@ -20,10 +20,10 @@ def init_db() -> None:
     from sqlalchemy import inspect
     from ai_career_platform.db import models
     inspector = inspect(engine)
-    for table in ("users", "password_reset_tokens"):
-        if not inspector.has_table(table):
-            models.Base.metadata.create_all(bind=engine)
-            break
+    required = ["users", "password_reset_tokens", "user_profiles", "educations", "experiences", "projects", "skills", "certifications", "job_preferences", "resume_versions"]
+    missing = [t for t in required if not inspector.has_table(t)]
+    if missing:
+        models.Base.metadata.create_all(bind=engine)
 
 
 def get_db() -> Generator[Session, None, None]:
