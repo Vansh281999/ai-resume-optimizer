@@ -1,154 +1,116 @@
+import io
 import json
 import re
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from ai_career_platform.ai_providers.gemini_provider import GeminiProvider
+from ai_career_platform.ai_providers.factory import get_multi_provider
 
 
-class ResumeParser:
-    def __init__(self, model: str = "gemini-2.0-flash"):
-        self.provider = GeminiProvider(model=model)
+class ResumeIngestionError(RuntimeError):
+    pass
+
+
+class ResumeIngestionPipeline:
+    def __init__(self, providers: Optional[List[str]] = None, model: str = "gemini-2.0-flash", max_text_chars: int = 30000):
+        self.model = model
+        self.max_text_chars = max_text_chars
+        self.provider = get_multi_provider(providers=providers or ["gemini", "openrouter", "ollama"], model=model)
         self.system_prompt = (
-            "You are a resume parsing system. Extract structured career profile data from the resume text. "
-            "Return ONLY a JSON object matching this exact structure. No markdown, no explanations, no preamble.\n\n"
+            "You are an expert resume parser. Extract all information from the resume and return ONLY valid JSON. "
+            "Do not include markdown, explanations, or comments. If a field is not present, use an empty string, null, or an empty array.\n\n"
+            "Schema:\n"
             "{\n"
-            '  "personal_info": {\n'
-            '    "full_name": "",\n'
-            '    "email": "",\n'
-            '    "phone": "",\n'
-            '    "location": "",\n'
-            '    "linkedin_url": "",\n'
-            '    "github_url": "",\n'
-            '    "portfolio_url": ""\n'
-            "  },\n"
+            '  "personal_info": {"full_name": "", "email": "", "phone": "", "location": "", "linkedin_url": "", "github_url": "", "portfolio_url": ""},\n'
             '  "headline": "",\n'
             '  "summary": "",\n'
             '  "career_objective": "",\n'
-            '  "education": [\n'
-            "    {\n"
-            '      "degree": "",\n'
-            '      "specialization": "",\n'
-            '      "institution": "",\n'
-            '      "start_date": "",\n'
-            '      "end_date": "",\n'
-            '      "cgpa": "",\n'
-            '      "description": ""\n'
-            "    }\n"
-            "  ],\n"
-            '  "experience": [\n'
-            "    {\n"
-            '      "title": "",\n'
-            '      "company": "",\n'
-            '      "location": "",\n'
-            '      "start_date": "",\n'
-            '      "end_date": "",\n'
-            '      "responsibilities": "",\n'
-            '      "achievements": ""\n'
-            "    }\n"
-            "  ],\n"
-            '  "projects": [\n'
-            "    {\n"
-            '      "project_name": "",\n'
-            '      "description": "",\n'
-            '      "technologies": "",\n'
-            '      "github_url": "",\n'
-            '      "live_url": "",\n'
-            '      "start_date": "",\n'
-            '      "end_date": ""\n'
-            "    }\n"
-            "  ],\n"
-            '  "skills": {\n'
-            '    "programming_languages": [],\n'
-            '    "frameworks": [],\n'
-            '    "databases": [],\n'
-            '    "cloud_technologies": [],\n'
-            '    "devops_tools": [],\n'
-            '    "ai_ml_technologies": [],\n'
-            '    "soft_skills": []\n'
-            "  },\n"
-            '  "certifications": [\n'
-            "    {\n"
-            '      "certification_name": "",\n'
-            '      "issuer": "",\n'
-            '      "issue_date": "",\n'
-            '      "expiry_date": "",\n'
-            '      "credential_url": ""\n'
-            "    }\n"
-            "  ],\n"
-            '  "job_preferences": {\n'
-            '    "preferred_roles": "",\n'
-            '    "preferred_locations": "",\n'
-            '    "work_mode": "",\n'
-            '    "expected_salary_min": null,\n'
-            '    "expected_salary_max": null,\n'
-            '    "years_of_experience": ""\n'
-            "  }\n"
+            '  "education": [{"degree": "", "specialization": "", "institution": "", "start_date": "", "end_date": "", "cgpa": "", "description": ""}],\n'
+            '  "experience": [{"title": "", "company": "", "location": "", "start_date": "", "end_date": "", "responsibilities": "", "achievements": ""}],\n'
+            '  "projects": [{"project_name": "", "description": "", "technologies": "", "github_url": "", "live_url": "", "start_date": "", "end_date": ""}],\n'
+            '  "skills": {"programming_languages": [], "frameworks": [], "databases": [], "cloud_technologies": [], "devops_tools": [], "ai_ml_technologies": [], "soft_skills": []},\n'
+            '  "certifications": [{"certification_name": "", "issuer": "", "issue_date": "", "expiry_date": "", "credential_url": ""}],\n'
+            '  "job_preferences": {"preferred_roles": "", "preferred_locations": "", "work_mode": "", "expected_salary_min": null, "expected_salary_max": null, "years_of_experience": ""}\n'
             "}"
         )
 
+    def ingest(self, content: bytes, filename: str) -> Dict[str, Any]:
+        raw_text = self.extract_text(content, filename)
+        cleaned_text = self.clean_text(raw_text)
+        if not cleaned_text:
+            raise ResumeIngestionError("Could not extract readable text from the uploaded resume. Try a PDF, DOCX, or TXT file with selectable text.")
+        parsed = self.parse(cleaned_text)
+        return {
+            "cleaned_text": cleaned_text,
+            "parsed": parsed,
+            "metadata": {
+                "filename": Path(filename).name,
+                "text_chars": len(cleaned_text),
+                "parser_model": self.model,
+            },
+        }
+
+    def extract_text(self, content: bytes, filename: str) -> str:
+        suffix = Path(filename).suffix.lower()
+        if suffix == ".pdf":
+            return self._extract_pdf(content)
+        if suffix == ".docx":
+            return self._extract_docx(content)
+        if suffix == ".txt":
+            return content.decode("utf-8", errors="ignore")
+        if suffix == ".doc":
+            raise ResumeIngestionError("Legacy .doc files are not supported. Convert the resume to DOCX, PDF, or TXT and upload again.")
+        raise ResumeIngestionError(f"Unsupported file type: {suffix or 'no extension'}. Upload PDF, DOCX, or TXT.")
+
+    def clean_text(self, text: str) -> str:
+        text = text.replace("\r\n", "\n").replace("\r", "\n").replace("\u00a0", " ")
+        lines = [re.sub(r"[ \t]+", " ", line).strip() for line in text.split("\n")]
+        lines = [line for line in lines if line]
+        return "\n".join(lines)[: self.max_text_chars]
+
     def parse(self, resume_text: str) -> Dict[str, Any]:
-        if not resume_text or not resume_text.strip():
-            raise ValueError("Resume text is empty")
+        prompt = (
+            f"{self.system_prompt}\n\n"
+            "Resume text:\n"
+            "--------------------\n"
+            f"{resume_text}\n"
+            "--------------------\n"
+            "Return ONLY the JSON object matching the schema."
+        )
         try:
-            prompt = (
-                f"{self.system_prompt}\n\n"
-                "Resume text to parse:\n"
-                "--------------------\n"
-                f"{resume_text.strip()}\n"
-                "--------------------\n"
-                "Parse the above resume and return the JSON object."
-            )
             raw = self.provider.generate(
                 [{"role": "user", "content": prompt}],
                 timeout=120,
-                retries=2,
+                retries=1,
             )
             data = self._extract_json(raw)
-            return self._validate(data)
-        except Exception:
-            return self._fallback_parse(resume_text)
+            return self._normalize(data)
+        except Exception as exc:
+            raise ResumeIngestionError("Resume parser service temporarily unavailable. Please try again later.") from exc
 
-    def _fallback_parse(self, resume_text: str) -> Dict[str, Any]:
-        lines = [line.strip() for line in resume_text.splitlines() if line.strip()]
-        text = "\n".join(lines)
-        email_match = re.search(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", text)
-        phone_match = re.search(r"(?:\+?\d{1,3}[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}", text)
-        linkedin_match = re.search(r"(?:https?://)?(?:www\.)?linkedin\.com/in/[A-Za-z0-9_-]+/?", text)
-        github_match = re.search(r"(?:https?://)?(?:www\.)?github\.com/[A-Za-z0-9_.-]+/?", text)
-        portfolio_match = re.search(r"(?:https?://)?(?:www\.)?[A-Za-z0-9.-]+\.[A-Za-z]{2,}(?:/[A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]*)?", text)
+    def _extract_pdf(self, content: bytes) -> str:
+        try:
+            import fitz
 
-        personal_info = {
-            "full_name": lines[0] if lines else "",
-            "email": email_match.group(0) if email_match else "",
-            "phone": phone_match.group(0) if phone_match else "",
-            "location": "",
-            "linkedin_url": linkedin_match.group(0) if linkedin_match else "",
-            "github_url": github_match.group(0) if github_match else "",
-            "portfolio_url": portfolio_match.group(0) if portfolio_match and portfolio_match.group(0).lower() not in {linkedin_match.group(0).lower() if linkedin_match else "", github_match.group(0).lower() if github_match else ""} else "",
-        }
-        section_headers = {
-            "education", "experience", "projects", "skills", "certifications", "summary", "objective", "career objective", "profile", "about"
-        }
-        summary_lines = []
-        for line in lines[1:]:
-            normalized = line.lower().rstrip(":")
-            if normalized in section_headers or normalized.endswith(" experience") or normalized.endswith(" education"):
-                break
-            summary_lines.append(line)
-        summary = " ".join(summary_lines)[:1200]
+            with fitz.open(stream=content, filetype="pdf") as doc:
+                return "\n".join(page.get_text("text") or "" for page in doc)
+        except Exception as exc:
+            raise ResumeIngestionError("PDF extraction failed. Try exporting the resume as a text-based PDF.") from exc
 
-        return self._validate({
-            "personal_info": personal_info,
-            "headline": lines[1] if len(lines) > 1 else "",
-            "summary": summary,
-            "career_objective": "",
-            "education": [],
-            "experience": [],
-            "projects": [],
-            "skills": {},
-            "certifications": [],
-            "job_preferences": {},
-        })
+    def _extract_docx(self, content: bytes) -> str:
+        try:
+            from docx import Document
+
+            doc = Document(io.BytesIO(content))
+            parts = [paragraph.text for paragraph in doc.paragraphs if paragraph.text]
+            for table in doc.tables:
+                for row in table.rows:
+                    row_text = " | ".join(cell.text for cell in row.cells if cell.text)
+                    if row_text:
+                        parts.append(row_text)
+            return "\n".join(parts)
+        except Exception as exc:
+            raise ResumeIngestionError("DOCX extraction failed. Try saving the resume as DOCX or PDF.") from exc
 
     def _extract_json(self, raw: str) -> Dict[str, Any]:
         text = raw.strip()
@@ -158,21 +120,90 @@ class ResumeParser:
         start = text.find("{")
         end = text.rfind("}")
         if start == -1 or end == -1 or end < start:
-            raise ValueError(f"Could not extract JSON from output: {text[:300]}")
+            raise ValueError("LLM response did not contain a JSON object")
         json_str = text[start : end + 1]
         try:
             return json.loads(json_str)
         except json.JSONDecodeError as exc:
-            raise ValueError(f"Invalid JSON from parser: {exc}\nRaw: {json_str[:500]}") from exc
+            raise ValueError("LLM response was not valid JSON") from exc
 
-    def _validate(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def _normalize(self, data: Dict[str, Any]) -> Dict[str, Any]:
         if not isinstance(data, dict):
             raise ValueError("Parsed output is not a JSON object")
-        data.setdefault("personal_info", {})
-        data.setdefault("education", [])
-        data.setdefault("experience", [])
-        data.setdefault("projects", [])
-        data.setdefault("skills", {})
-        data.setdefault("certifications", [])
-        data.setdefault("job_preferences", {})
-        return data
+
+        info = data.get("personal_info") or {}
+        if not isinstance(info, dict):
+            info = {}
+        skills = data.get("skills") or {}
+        if isinstance(skills, list):
+            skills = {"general": skills}
+        if not isinstance(skills, dict):
+            skills = {}
+
+        return {
+            "personal_info": {
+                "full_name": _clean_string(info.get("full_name") or info.get("name")),
+                "email": _clean_string(info.get("email")),
+                "phone": _clean_string(info.get("phone")),
+                "location": _clean_string(info.get("location")),
+                "linkedin_url": _clean_url(info.get("linkedin_url") or info.get("linkedin")),
+                "github_url": _clean_url(info.get("github_url") or info.get("github")),
+                "portfolio_url": _clean_url(info.get("portfolio_url") or info.get("portfolio")),
+            },
+            "headline": _clean_string(data.get("headline")),
+            "summary": _clean_string(data.get("summary")),
+            "career_objective": _clean_string(data.get("career_objective")),
+            "education": [_normalize_dict(item) for item in _as_list(data.get("education"))],
+            "experience": [_normalize_dict(item) for item in _as_list(data.get("experience"))],
+            "projects": [_normalize_dict(item) for item in _as_list(data.get("projects"))],
+            "skills": {str(key): _as_string_list(value) for key, value in skills.items()},
+            "certifications": [_normalize_dict(item) for item in _as_list(data.get("certifications"))],
+            "job_preferences": _normalize_dict(data.get("job_preferences") or {}),
+        }
+
+
+class ResumeParser:
+    def __init__(self, model: str = "gemini-2.0-flash"):
+        self.pipeline = ResumeIngestionPipeline(model=model)
+
+    def parse(self, resume_text: str) -> Dict[str, Any]:
+        return self.pipeline.parse(resume_text)
+
+
+def _clean_string(value: Any) -> str:
+    if value is None:
+        return ""
+    return re.sub(r"\s+", " ", str(value)).strip()[:2000]
+
+
+def _clean_url(value: Any) -> str:
+    text = _clean_string(value)
+    if not text:
+        return ""
+    if not re.match(r"^https?://", text, flags=re.IGNORECASE):
+        return f"https://{text}"
+    return text
+
+
+def _as_list(value: Any) -> List[Any]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    return [value]
+
+
+def _as_string_list(value: Any) -> List[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [item.strip() for item in re.split(r"[,;\n]", value) if item.strip()]
+    if isinstance(value, list):
+        return [_clean_string(item) for item in value if _clean_string(item)]
+    return [_clean_string(value)] if _clean_string(value) else []
+
+
+def _normalize_dict(value: Any) -> Dict[str, Any]:
+    if isinstance(value, dict):
+        return {str(key): _clean_string(val) for key, val in value.items()}
+    return {}

@@ -434,14 +434,14 @@ export default function ProfileSettings() {
                 <label className="glass-card flex cursor-pointer flex-col items-center gap-3 py-8">
                   <Upload className="size-8 text-primary-600" />
                   <span className="font-semibold">Upload new resume</span>
-                  <span className="text-xs text-slate-500">PDF, DOCX, DOC</span>
-                  <input type="file" accept=".pdf,.docx,.doc" className="hidden" onChange={(e) => e.target.files?.[0] && handleResumeUpload(e.target.files[0])} />
+                  <span className="text-xs text-slate-500">PDF, DOCX, or TXT</span>
+                  <input type="file" accept=".pdf,.docx,.txt" className="hidden" onChange={(e) => e.target.files?.[0] && handleResumeUpload(e.target.files[0])} />
                 </label>
                 <label className="glass-card flex cursor-pointer flex-col items-center gap-3 py-8">
                   <FileText className="size-8 text-primary-600" />
                   <span className="font-semibold">Compare with current profile</span>
                   <span className="text-xs text-slate-500">See suggested changes</span>
-                  <input type="file" accept=".pdf,.docx,.doc" className="hidden" onChange={(e) => e.target.files?.[0] && handleResumeCompare(e.target.files[0])} />
+                  <input type="file" accept=".pdf,.docx,.txt" className="hidden" onChange={(e) => e.target.files?.[0] && handleResumeCompare(e.target.files[0])} />
                 </label>
               </div>
 
@@ -449,7 +449,15 @@ export default function ProfileSettings() {
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950">
                   <p className="mb-2 font-semibold">Suggested changes</p>
                   <div className="prose prose-slate max-w-none text-sm dark:prose-invert">
-                    <ReactMarkdown>{JSON.stringify(compareResult.changes, null, 2)}</ReactMarkdown>
+                    {Array.isArray(compareResult.changes) ? (
+                      <ul className="space-y-1">
+                        {compareResult.changes.map((change: string, index: number) => (
+                          <li key={`${change}-${index}`}>{change}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <ReactMarkdown>{JSON.stringify(compareResult.changes, null, 2)}</ReactMarkdown>
+                    )}
                   </div>
                 </div>
               )}

@@ -58,11 +58,11 @@ class MultiProvider(BaseLLMProvider):
             try:
                 logger.info(f"Trying {provider_name} for LLM generation")
                 return provider.generate(messages, timeout=timeout, retries=retries)
-            except Exception as e:
-                logger.warning(f"{provider_name} failed: {e}")
-                errors.append(f"{provider_name}: {str(e)}")
+            except Exception:
+                logger.warning("%s failed for LLM generation", provider_name)
+                errors.append(provider_name)
                 continue
-        raise RuntimeError(f"All providers failed. Errors: {errors}")
+        raise RuntimeError("All configured LLM providers failed. Please try again later.")
 
 def get_multi_provider(**kwargs) -> MultiProvider:
     return MultiProvider(**kwargs)

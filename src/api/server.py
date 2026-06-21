@@ -1,7 +1,6 @@
 import os
 import sys
 import json
-import io
 import time
 import uuid
 import logging
@@ -55,24 +54,10 @@ def _load_fallback(name: str) -> Dict[str, Any]:
 
 
 def _extract_text(filename: str, ext: str, contents: bytes) -> str:
-    try:
-        if ext == ".pdf":
-            try:
-                import pdfplumber
-                with pdfplumber.open(io.BytesIO(contents)) as pdf:
-                    return "\n".join(page.extract_text() or "" for page in pdf.pages)
-            except Exception:
-                return ""
-        if ext == ".docx":
-            try:
-                import docx
-                doc = docx.Document(io.BytesIO(contents))
-                return "\n".join(p.text for p in doc.paragraphs)
-            except Exception:
-                return ""
-        return contents.decode("utf-8", errors="ignore")
-    except Exception:
-        return ""
+    from ai_career_platform.services.resume_parser import ResumeIngestionPipeline
+
+    pipeline = ResumeIngestionPipeline()
+    return pipeline.clean_text(pipeline.extract_text(contents, filename))
 
 
 logger = logging.getLogger("ai_career_platform")
@@ -704,30 +689,39 @@ def create_app(overridden_settings=None) -> FastAPI:
             raise HTTPException(status_code=400, detail="Invalid upload")
 
     @application.post("/api/profile/parse-resume")
-    async def parse_resume_endpoint(request: Request, payload: Dict = Depends(_require_auth)):
-        from ai_career_platform.services.resume_parser import ResumeParser
-        form = None
+    async def parse_resume_endpoint(request: Request, payload: Dict = Depends(_require_auth), db: Session = Depends(get_db)):
+        from ai_career_platform.db.models import UserProfile, ResumeVersion
+        from ai_career_platform.services.resume_parser import ResumeIngestionError, ResumeIngestionPipeline
         try:
             form = await request.form()
-            file = None
-            for key, value in form.items():
-                if hasattr(value, "filename") and value.filename:
-                    file = value
-                    break
-                file = value
-            if not file:
-                raise HTTPException(status_code=400, detail="No file uploaded")
+            file = _get_uploaded_file(form)
             content = await file.read()
             if len(content) > _max_upload:
                 raise HTTPException(status_code=413, detail=f"File exceeds max size of {_max_upload//(1024*1024)} MB")
-            text = _extract_text_from_bytes(content, getattr(file, "filename", ""))
-            parser = ResumeParser()
-            parsed = parser.parse(text)
-            return {"parsed": parsed}
+            result = ResumeIngestionPipeline().ingest(content, getattr(file, "filename", "resume"))
+            profile = db.query(UserProfile).filter(UserProfile.user_id == payload.get("sub")).first()
+            if not profile:
+                profile = UserProfile(id=f"profile_{uuid.uuid4().hex}", user_id=payload.get("sub"))
+                db.add(profile)
+            version = ResumeVersion(
+                id=f"rv_{uuid.uuid4().hex}",
+                profile_id=profile.id,
+                original_filename=getattr(file, "filename", "resume"),
+                storage_path=None,
+                parsed_json=json.dumps(result["parsed"], default=str),
+                version_number=(db.query(ResumeVersion).filter(ResumeVersion.profile_id == profile.id).count() + 1),
+            )
+            db.add(version)
+            db.commit()
+            db.refresh(version)
+            return {"parsed": result["parsed"], "version": _row_to_dict(version), "metadata": result["metadata"]}
         except HTTPException:
             raise
-        except ValueError as exc:
+        except ResumeIngestionError as exc:
             logger.error("resume_parse_error error=%s", exc)
+            raise HTTPException(status_code=503, detail=str(exc))
+        except ValueError as exc:
+            logger.error("resume_parse_validation_error error=%s", exc)
             raise HTTPException(status_code=400, detail=str(exc))
         except Exception as exc:
             logger.error("resume_parse_error error=%s", exc)
@@ -735,29 +729,27 @@ def create_app(overridden_settings=None) -> FastAPI:
 
     @application.post("/api/profile/compare-resume")
     async def compare_resume(request: Request, payload: Dict = Depends(_require_auth), db: Session = Depends(get_db)):
-        from ai_career_platform.db.models import UserProfile, ResumeVersion
-        from ai_career_platform.services.resume_parser import ResumeParser
+        from ai_career_platform.db.models import UserProfile
+        from ai_career_platform.services.resume_parser import ResumeIngestionError, ResumeIngestionPipeline
         try:
             form = await request.form()
-            file = None
-            for key, value in form.items():
-                if hasattr(value, "filename") and value.filename:
-                    file = value
-                    break
-                file = value
-            if not file:
-                raise HTTPException(status_code=400, detail="No file uploaded")
+            file = _get_uploaded_file(form)
             content = await file.read()
             if len(content) > _max_upload:
                 raise HTTPException(status_code=413, detail=f"File exceeds max size of {_max_upload//(1024*1024)} MB")
-            text = _extract_text_from_bytes(content, getattr(file, "filename", ""))
-            parsed = ResumeParser().parse(text)
-            return {"changes": parsed, "current_profile": None}
+            result = ResumeIngestionPipeline().ingest(content, getattr(file, "filename", "resume"))
+            profile = db.query(UserProfile).filter(UserProfile.user_id == payload.get("sub")).first()
+            current_profile = _profile_to_dict(profile) if profile else None
+            changes = _compare_parsed_profile(result["parsed"], profile) if profile else []
+            return {"changes": changes, "parsed": result["parsed"], "current_profile": current_profile, "metadata": result["metadata"]}
         except HTTPException:
             raise
+        except ResumeIngestionError as exc:
+            logger.error("resume_compare_error error=%s", exc)
+            raise HTTPException(status_code=503, detail=str(exc))
         except Exception as exc:
             logger.error("resume_compare_error error=%s", exc)
-            raise HTTPException(status_code=400, detail="Failed to compare resume")
+            raise HTTPException(status_code=503, detail="Resume comparison service temporarily unavailable. Please try again later.")
 
     @application.get("/api/profile/resume-history")
     def resume_history(payload: Dict = Depends(_require_auth), db: Session = Depends(get_db)):
@@ -897,22 +889,68 @@ def _row_to_dict(obj):
     return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
 
 
-def _extract_text_from_bytes(content: bytes, filename: str) -> str:
-    suffix = Path(filename).suffix.lower()
-    if suffix == ".pdf":
-        try:
-            import pdfplumber
-            with pdfplumber.open(io.BytesIO(content)) as pdf:
-                return "\n".join(page.extract_text() or "" for page in pdf.pages)
-        except Exception as exc:
-            raise ValueError(f"PDF extraction failed: {exc}") from exc
-    if suffix in (".docx", ".doc"):
-        try:
-            import docx
-            doc = docx.Document(io.BytesIO(content))
-            return "\n".join(p.text for p in doc.paragraphs if p.text)
-        except Exception as exc:
-            raise ValueError(f"DOCX extraction failed: {exc}") from exc
-    if suffix == ".txt":
-        return content.decode("utf-8", errors="ignore")
-    raise ValueError(f"Unsupported file type: {suffix or 'no extension'}. Upload PDF, DOCX, or TXT.")
+def _get_uploaded_file(form) -> Any:
+    for value in form.values():
+        if hasattr(value, "filename") and value.filename:
+            return value
+    raise HTTPException(status_code=400, detail="No file uploaded")
+
+
+def _profile_to_dict(profile) -> Optional[Dict[str, Any]]:
+    if not profile:
+        return None
+    return {
+        "full_name": profile.full_name,
+        "email": profile.email,
+        "phone": profile.phone,
+        "location": profile.location,
+        "linkedin_url": profile.linkedin_url,
+        "github_url": profile.github_url,
+        "portfolio_url": profile.portfolio_url,
+        "headline": profile.headline,
+        "summary": profile.summary,
+        "career_objective": profile.career_objective,
+        "education": [_row_to_dict(item) for item in profile.education],
+        "experience": [_row_to_dict(item) for item in profile.experience],
+        "projects": [_row_to_dict(item) for item in profile.projects],
+        "skills": [_row_to_dict(item) for item in profile.skills],
+        "certifications": [_row_to_dict(item) for item in profile.certifications],
+    }
+
+
+def _compare_parsed_profile(parsed: Dict[str, Any], profile) -> List[str]:
+    changes: List[str] = []
+    current_skills = {str(item.skill_name).lower(): item for item in profile.skills if item.skill_name}
+    for names in (parsed.get("skills") or {}).values():
+        for name in names or []:
+            if name and str(name).lower() not in current_skills:
+                changes.append(f"✓ Added Skill: {name}")
+
+    current_projects = {str(item.project_name).lower(): item for item in profile.projects if item.project_name}
+    for project in parsed.get("projects") or []:
+        project_name = project.get("project_name")
+        if project_name and str(project_name).lower() not in current_projects:
+            changes.append(f"✓ New Project: {project_name}")
+
+    current_education = {(item.degree or "").lower(), (item.institution or "").lower(), (item.cgpa or "").lower()}
+    for education in parsed.get("education") or []:
+        cgpa = education.get("cgpa")
+        if cgpa and str(cgpa).lower() not in current_education:
+            changes.append(f"✓ Updated Education: {education.get('degree') or 'Degree'} at {education.get('institution') or 'Institution'} CGPA {cgpa}")
+
+    personal_fields = {
+        "full_name": "Name",
+        "email": "Email",
+        "phone": "Phone",
+        "location": "Location",
+        "linkedin_url": "LinkedIn",
+        "github_url": "GitHub",
+        "portfolio_url": "Portfolio",
+    }
+    for key, label in personal_fields.items():
+        old_value = getattr(profile, key, "") or ""
+        new_value = (parsed.get("personal_info") or {}).get(key) or ""
+        if new_value and str(old_value).lower() != str(new_value).lower():
+            changes.append(f"✓ Updated {label}: {old_value} → {new_value}")
+
+    return changes or ["No changes detected"]
