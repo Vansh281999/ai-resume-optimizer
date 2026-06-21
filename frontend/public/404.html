@@ -2,17 +2,20 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="refresh" content="0; url=/ai-resume-optimizer/" />
     <title>Career OS - AI Career Intelligence</title>
   </head>
   <body>
     <script>
       const repoPath = '/ai-resume-optimizer';
-      const currentPath = window.location.pathname;
-      const nextPath = currentPath === repoPath || currentPath === repoPath + '/'
-        ? repoPath + '/'
-        : repoPath + currentPath + window.location.search + window.location.hash;
-      window.location.replace(nextPath);
+      let routePath = window.location.pathname.startsWith(repoPath)
+        ? window.location.pathname.slice(repoPath.length)
+        : window.location.pathname;
+      while (routePath.startsWith(repoPath)) {
+        routePath = routePath.slice(repoPath.length);
+      }
+      const safeRoute = routePath.startsWith('/') ? routePath : '/' + routePath;
+      const existingHash = window.location.hash ? window.location.hash.replace(/^#/, '') : '';
+      window.location.replace(repoPath + '/#' + safeRoute + existingHash + window.location.search);
     </script>
   </body>
 </html>

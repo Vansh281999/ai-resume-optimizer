@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { BrowserRouter } from 'react-router-dom';
+import { HashRouter } from 'react-router-dom';
 import App from './App';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -51,7 +51,7 @@ try {
   ReactDOM.createRoot(rootElement).render(
     <React.StrictMode>
       <GlobalErrorBoundary>
-        <BrowserRouter basename="/ai-resume-optimizer">
+        <HashRouter basename="/ai-resume-optimizer">
           <ThemeProvider>
             <ToastProvider>
               <AuthProvider>
@@ -59,7 +59,7 @@ try {
               </AuthProvider>
             </ToastProvider>
           </ThemeProvider>
-        </BrowserRouter>
+        </HashRouter>
       </GlobalErrorBoundary>
     </React.StrictMode>,
   );

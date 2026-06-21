@@ -60,6 +60,15 @@ def _extract_text(filename: str, ext: str, contents: bytes) -> str:
     return pipeline.clean_text(pipeline.extract_text(contents, filename))
 
 
+def _validate_resume_upload(filename: str, content: bytes, content_type: str, max_size: int) -> str:
+    from ai_career_platform.services.resume_parser import ResumeFileValidationError, ResumeIngestionPipeline
+
+    try:
+        return ResumeIngestionPipeline().validate_file(filename, content, content_type, max_size)
+    except ResumeFileValidationError:
+        raise
+
+
 logger = logging.getLogger("ai_career_platform")
 if not logger.handlers:
     _handler = logging.StreamHandler()
@@ -331,18 +340,18 @@ def create_app(overridden_settings=None) -> FastAPI:
 
     @application.post("/api/ats/upload")
     async def ats_upload(request: Request, file: UploadFile = File(...), keywords: str = "", additional_text: str = "", payload: Optional[Dict] = Depends(_current_user), db: Session = Depends(get_db)):
+        from ai_career_platform.services.resume_parser import ResumeFileValidationError, ResumeIngestionError
         filename = file.filename or "uploaded"
-        ext = os.path.splitext(filename)[1].lower()
-        if ext not in _allowed_ext:
-            raise HTTPException(status_code=415, detail=f"Unsupported file type: {ext}")
         content_type = file.content_type or ""
-        allowed_content_types = {"application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain", "text/markdown"}
-        if content_type not in allowed_content_types:
-            raise HTTPException(status_code=415, detail=f"Unsupported content type: {content_type}")
-        content = await file.read()
-        if len(content) > _max_upload:
-            raise HTTPException(status_code=413, detail=f"File exceeds max size of {_max_upload // (1024*1024)} MB")
-        text = _extract_text(filename, ext, content)
+        try:
+            content = await file.read()
+            _validate_resume_upload(filename, content, content_type, _max_upload)
+            ext = os.path.splitext(filename)[1].lower()
+            text = _extract_text(filename, ext, content)
+        except ResumeFileValidationError as exc:
+            raise HTTPException(status_code=415, detail=str(exc))
+        except ResumeIngestionError as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
         if not text.strip():
             raise HTTPException(status_code=422, detail="Could not extract readable text from file")
         if additional_text.strip():
@@ -653,28 +662,21 @@ def create_app(overridden_settings=None) -> FastAPI:
     @application.post("/api/profile/upload-resume")
     async def upload_resume(request: Request, payload: Dict = Depends(_require_auth), db: Session = Depends(get_db)):
         from ai_career_platform.db.models import UserProfile, ResumeVersion
+        from ai_career_platform.services.resume_parser import ResumeFileValidationError, ResumeIngestionError
         profile = db.query(UserProfile).filter(UserProfile.user_id == payload.get("sub")).first()
         if not profile:
             raise HTTPException(status_code=400, detail="Complete onboarding first")
-        form = None
         try:
             form = await request.form()
-            file = None
-            for key, value in form.items():
-                if hasattr(value, "filename") and value.filename:
-                    file = value
-                    break
-                file = value
-            if not file:
-                raise HTTPException(status_code=400, detail="No file uploaded")
+            file = _get_uploaded_file(form)
             content = await file.read()
-            if len(content) > _max_upload:
-                raise HTTPException(status_code=413, detail=f"File exceeds max size of {_max_upload//(1024*1024)} MB")
+            _validate_resume_upload(getattr(file, "filename", "resume"), content, getattr(file, "content_type", ""), _max_upload)
+            logger.info("resume_upload_received filename=%s content_type=%s size=%s", getattr(file, "filename", "resume"), getattr(file, "content_type", ""), len(content))
             version = ResumeVersion(
                 id=f"rv_{uuid.uuid4().hex}",
                 profile_id=profile.id,
                 original_filename=getattr(file, "filename", "upload.bin"),
-                storage_path=None,
+                storage_path=getattr(file, "filename", "upload.bin"),
                 parsed_json=None,
                 version_number=(db.query(ResumeVersion).filter(ResumeVersion.profile_id == profile.id).count() + 1),
             )
@@ -684,6 +686,10 @@ def create_app(overridden_settings=None) -> FastAPI:
             return {"version": _row_to_dict(version)}
         except HTTPException:
             raise
+        except ResumeFileValidationError as exc:
+            raise HTTPException(status_code=415, detail=str(exc))
+        except ResumeIngestionError as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
         except Exception as exc:
             logger.error("resume_upload_error error=%s", exc)
             raise HTTPException(status_code=400, detail="Invalid upload")
@@ -691,14 +697,15 @@ def create_app(overridden_settings=None) -> FastAPI:
     @application.post("/api/profile/parse-resume")
     async def parse_resume_endpoint(request: Request, payload: Dict = Depends(_require_auth), db: Session = Depends(get_db)):
         from ai_career_platform.db.models import UserProfile, ResumeVersion
-        from ai_career_platform.services.resume_parser import ResumeIngestionError, ResumeIngestionPipeline
+        from ai_career_platform.services.resume_parser import ResumeFileValidationError, ResumeIngestionError, ResumeIngestionPipeline
         try:
             form = await request.form()
             file = _get_uploaded_file(form)
+            filename = getattr(file, "filename", "resume")
             content = await file.read()
-            if len(content) > _max_upload:
-                raise HTTPException(status_code=413, detail=f"File exceeds max size of {_max_upload//(1024*1024)} MB")
-            result = ResumeIngestionPipeline().ingest(content, getattr(file, "filename", "resume"))
+            _validate_resume_upload(filename, content, getattr(file, "content_type", ""), _max_upload)
+            logger.info("resume_parse_received filename=%s content_type=%s size=%s", filename, getattr(file, "content_type", ""), len(content))
+            result = ResumeIngestionPipeline().ingest(content, filename, getattr(file, "content_type", ""), _max_upload)
             profile = db.query(UserProfile).filter(UserProfile.user_id == payload.get("sub")).first()
             if not profile:
                 profile = UserProfile(id=f"profile_{uuid.uuid4().hex}", user_id=payload.get("sub"))
@@ -706,17 +713,19 @@ def create_app(overridden_settings=None) -> FastAPI:
             version = ResumeVersion(
                 id=f"rv_{uuid.uuid4().hex}",
                 profile_id=profile.id,
-                original_filename=getattr(file, "filename", "resume"),
-                storage_path=None,
-                parsed_json=json.dumps(result["parsed"], default=str),
+                original_filename=filename,
+                storage_path=filename,
+                parsed_json=json.dumps(result["structured_resume"], default=str),
                 version_number=(db.query(ResumeVersion).filter(ResumeVersion.profile_id == profile.id).count() + 1),
             )
             db.add(version)
             db.commit()
             db.refresh(version)
-            return {"parsed": result["parsed"], "version": _row_to_dict(version), "metadata": result["metadata"]}
+            return {"parsed": result["parsed"], "structured_resume": result["structured_resume"], "version": _row_to_dict(version), "metadata": result["metadata"]}
         except HTTPException:
             raise
+        except ResumeFileValidationError as exc:
+            raise HTTPException(status_code=415, detail=str(exc))
         except ResumeIngestionError as exc:
             logger.error("resume_parse_error error=%s", exc)
             raise HTTPException(status_code=503, detail=str(exc))
@@ -730,20 +739,23 @@ def create_app(overridden_settings=None) -> FastAPI:
     @application.post("/api/profile/compare-resume")
     async def compare_resume(request: Request, payload: Dict = Depends(_require_auth), db: Session = Depends(get_db)):
         from ai_career_platform.db.models import UserProfile
-        from ai_career_platform.services.resume_parser import ResumeIngestionError, ResumeIngestionPipeline
+        from ai_career_platform.services.resume_parser import ResumeFileValidationError, ResumeIngestionError, ResumeIngestionPipeline
         try:
             form = await request.form()
             file = _get_uploaded_file(form)
+            filename = getattr(file, "filename", "resume")
             content = await file.read()
-            if len(content) > _max_upload:
-                raise HTTPException(status_code=413, detail=f"File exceeds max size of {_max_upload//(1024*1024)} MB")
-            result = ResumeIngestionPipeline().ingest(content, getattr(file, "filename", "resume"))
+            _validate_resume_upload(filename, content, getattr(file, "content_type", ""), _max_upload)
+            logger.info("resume_compare_received filename=%s content_type=%s size=%s", filename, getattr(file, "content_type", ""), len(content))
+            result = ResumeIngestionPipeline().ingest(content, filename, getattr(file, "content_type", ""), _max_upload)
             profile = db.query(UserProfile).filter(UserProfile.user_id == payload.get("sub")).first()
             current_profile = _profile_to_dict(profile) if profile else None
-            changes = _compare_parsed_profile(result["parsed"], profile) if profile else []
-            return {"changes": changes, "parsed": result["parsed"], "current_profile": current_profile, "metadata": result["metadata"]}
+            changes = _compare_parsed_profile(result["structured_resume"], profile) if profile else []
+            return {"changes": changes, "parsed": result["structured_resume"], "current_profile": current_profile, "metadata": result["metadata"]}
         except HTTPException:
             raise
+        except ResumeFileValidationError as exc:
+            raise HTTPException(status_code=415, detail=str(exc))
         except ResumeIngestionError as exc:
             logger.error("resume_compare_error error=%s", exc)
             raise HTTPException(status_code=503, detail=str(exc))

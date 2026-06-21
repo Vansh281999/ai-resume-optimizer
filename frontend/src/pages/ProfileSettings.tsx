@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { getProfile, updateProfile, uploadResume, compareResume, getResumeHistory, addEducation, addExperience, addProject, addSkill, addCertification, updateJobPreferences } from '../lib/profile';
 import ReactMarkdown from 'react-markdown';
+import { ResumeDropzone } from '../components/ResumeDropzone';
 
 type Tab = 'personal' | 'education' | 'experience' | 'projects' | 'skills' | 'certifications' | 'preferences' | 'resume';
 
@@ -431,18 +432,20 @@ export default function ProfileSettings() {
           {tab === 'resume' && (
             <div className="space-y-6">
               <div className="grid gap-4 sm:grid-cols-2">
-                <label className="glass-card flex cursor-pointer flex-col items-center gap-3 py-8">
-                  <Upload className="size-8 text-primary-600" />
-                  <span className="font-semibold">Upload new resume</span>
-                  <span className="text-xs text-slate-500">PDF, DOCX, or TXT</span>
-                  <input type="file" accept=".pdf,.docx,.txt" className="hidden" onChange={(e) => e.target.files?.[0] && handleResumeUpload(e.target.files[0])} />
-                </label>
-                <label className="glass-card flex cursor-pointer flex-col items-center gap-3 py-8">
-                  <FileText className="size-8 text-primary-600" />
-                  <span className="font-semibold">Compare with current profile</span>
-                  <span className="text-xs text-slate-500">See suggested changes</span>
-                  <input type="file" accept=".pdf,.docx,.txt" className="hidden" onChange={(e) => e.target.files?.[0] && handleResumeCompare(e.target.files[0])} />
-                </label>
+                <ResumeDropzone
+                  onFile={handleResumeUpload}
+                  title="Upload new resume"
+                  description="PDF, DOCX, DOC, or TXT up to 10MB"
+                  accepted=".pdf,.docx,.doc,.txt"
+                  loading={loading}
+                />
+                <ResumeDropzone
+                  onFile={handleResumeCompare}
+                  title="Compare with current profile"
+                  description="See suggested changes before saving"
+                  accepted=".pdf,.docx,.doc,.txt"
+                  loading={loading}
+                />
               </div>
 
               {compareResult && (

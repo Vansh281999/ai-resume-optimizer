@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, FileText, UserRound, Upload } from 'lucide-react';
+import { Building2, Upload, UserRound } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { getProfile, completeOnboarding, parseResume, updateProfile } from '../lib/profile';
+import { ResumeDropzone } from '../components/ResumeDropzone';
 import type { User } from '../lib/api';
 
 export default function Onboarding() {
@@ -106,12 +107,13 @@ export default function Onboarding() {
           <h1 className="mt-2 text-3xl font-black tracking-tight">Upload your resume</h1>
           <p className="mt-2 text-slate-600 dark:text-slate-300">We'll extract and structure your profile.</p>
         </div>
-        <label className="glass-card flex cursor-pointer flex-col items-center gap-3 py-10">
-          <FileText className="size-10 text-slate-400" />
-          <span className="font-semibold text-slate-700 dark:text-slate-200">Click to upload resume</span>
-          <span className="text-xs text-slate-500">PDF, DOCX, or TXT up to 10MB</span>
-          <input type="file" accept=".pdf,.docx,.txt" className="hidden" onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
-        </label>
+        <ResumeDropzone
+          onFile={handleFile}
+          title="Drop resume or click to upload"
+          description="PDF, DOCX, DOC, or TXT up to 10MB"
+          accepted=".pdf,.docx,.doc,.txt"
+          loading={loading}
+        />
         <button className="btn-secondary w-full" onClick={() => setMode('choose')}>Back</button>
       </div>
     );
