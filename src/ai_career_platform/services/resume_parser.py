@@ -1,8 +1,11 @@
 import io
 import json
+import logging
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 from ai_career_platform.ai_providers.factory import get_multi_provider
 
@@ -68,17 +71,41 @@ class ResumeIngestionPipeline:
 
     def ingest(self, content: bytes, filename: str, content_type: str = "", max_size_bytes: int = 10 * 1024 * 1024) -> Dict[str, Any]:
         ext = self.validate_file(filename, content, content_type, max_size_bytes)
-        raw_text = self.extract_text(content, filename)
-        cleaned_text = self.clean_text(raw_text)
+        logger.info("resume_ingest_start filename=%s ext=%s size=%s", filename, ext, len(content))
+        raw_text = ""
+        cleaned_text = ""
+        text_source = "none"
+        try:
+            raw_text = self.extract_text(content, filename)
+            text_source = self.last_extraction_metadata.get("extraction_method", "unknown")
+            cleaned_text = self.clean_text(raw_text)
+            logger.info("resume_ingest_extracted filename=%s method=%s chars=%s", filename, text_source, len(cleaned_text))
+        except Exception as exc:
+            logger.error("resume_ingest_extraction_failed filename=%s error=%s", filename, exc, exc_info=True)
+            raw_text = content.decode("utf-8", errors="ignore") if content else ""
+            cleaned_text = self.clean_text(raw_text)
+            text_source = f"raw_fallback_after_error:{type(exc).__name__}"
+            logger.info("resume_ingest_raw_fallback filename=%s fallback_chars=%s", filename, len(cleaned_text))
+
         if not cleaned_text:
-            raise ResumeIngestionError("Could not extract readable text from the uploaded resume. For scanned PDFs, enable OCR or upload a text-based resume.")
-        parsed, parser_warning = self._parse_or_fallback(cleaned_text)
+            logger.error("resume_ingest_no_text filename=%s ext=%s", filename, ext)
+            raise ResumeIngestionError("Could not extract readable text from the uploaded resume. Ensure the file is not a scanned image-only PDF, and try a DOCX or TXT file instead.")
+
+        try:
+            parsed, parser_warning = self._parse_or_fallback(cleaned_text)
+            logger.info("resume_ingest_parsed filename=%s warning=%s", filename, parser_warning)
+        except Exception as exc:
+            logger.error("resume_ingest_parse_failed filename=%s error=%s", filename, exc, exc_info=True)
+            parsed = self._rule_based_extract(cleaned_text, f"Parsing failed: {exc}")
+            parser_warning = "Both LLM and rule-based parsing failed; using minimal extraction."
+
         metadata = {
             "filename": Path(filename).name,
             "extension": ext,
             "text_chars": len(cleaned_text),
             "parser_model": self.model,
             "parser_warning": parser_warning,
+            "extraction_method": text_source,
             **self.last_extraction_metadata,
         }
         return {
@@ -91,6 +118,7 @@ class ResumeIngestionPipeline:
     def extract_text(self, content: bytes, filename: str) -> str:
         suffix = Path(filename).suffix.lower()
         self.last_extraction_metadata = {"extraction_method": suffix.lstrip(".") or "unknown"}
+        logger.info("extract_text_start filename=%s suffix=%s", filename, suffix)
         if suffix == ".pdf":
             return self._extract_pdf(content)
         if suffix == ".docx":
@@ -153,19 +181,27 @@ class ResumeIngestionPipeline:
         ]
         for name, extractor in extractors:
             try:
+                logger.info("pdf_extract_try extractor=%s", name)
                 text = extractor(content)
                 if text and text.strip():
+                    logger.info("pdf_extract_success extractor=%s chars=%s", name, len(text))
                     self.last_extraction_metadata = {"extraction_method": name, "ocr_used": False}
                     return text
+                logger.warning("pdf_extract_empty extractor=%s", name)
                 errors.append(f"{name}: no text")
             except Exception as exc:
                 if self._is_password_error(exc):
+                    logger.error("pdf_extract_password_protected")
                     raise ResumeIngestionError("PDF is password protected. Remove the password and upload again.") from exc
+                logger.warning("pdf_extract_error extractor=%s error=%s", name, exc)
                 errors.append(f"{name}: {exc}")
+        logger.info("pdf_extract_ocr_fallback errors=%s", errors)
         ocr_text = self._ocr_pdf(content)
         if ocr_text and ocr_text.strip():
+            logger.info("pdf_extract_ocr_success chars=%s", len(ocr_text))
             self.last_extraction_metadata = {"extraction_method": "ocr", "ocr_used": True}
             return ocr_text
+        logger.error("pdf_extract_all_failed errors=%s", errors)
         raise ResumeIngestionError("PDF extraction failed. Upload a text-based PDF or enable OCR support on the server.")
 
     def _extract_pdf_pdfplumber(self, content: bytes) -> str:
@@ -221,17 +257,24 @@ class ResumeIngestionPipeline:
                     row_text = " | ".join(cell.text for cell in row.cells if cell.text)
                     if row_text:
                         parts.append(row_text)
-            return "\n".join(parts)
+            result = "\n".join(parts)
+            logger.info("docx_extract_success chars=%s", len(result))
+            return result
         except Exception as exc:
+            logger.error("docx_extract_error error=%s", exc, exc_info=True)
             raise ResumeIngestionError("DOCX extraction failed. The file may be corrupted or not a valid DOCX.") from exc
 
     def _extract_txt(self, content: bytes) -> str:
         for encoding in ("utf-8-sig", "utf-8", "utf-16", "cp1252"):
             try:
-                return content.decode(encoding)
+                text = content.decode(encoding)
+                logger.info("txt_extract_success encoding=%s chars=%s", encoding, len(text))
+                return text
             except UnicodeDecodeError:
                 continue
-        return content.decode("utf-8", errors="ignore")
+        text = content.decode("utf-8", errors="ignore")
+        logger.info("txt_extract_fallback chars=%s", len(text))
+        return text
 
     def _detect_mime_type(self, content: bytes, ext: str) -> str:
         if ext == ".pdf" and content.startswith(b"%PDF"):

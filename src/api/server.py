@@ -698,14 +698,17 @@ def create_app(overridden_settings=None) -> FastAPI:
     async def parse_resume_endpoint(request: Request, payload: Dict = Depends(_require_auth), db: Session = Depends(get_db)):
         from ai_career_platform.db.models import UserProfile, ResumeVersion
         from ai_career_platform.services.resume_parser import ResumeFileValidationError, ResumeIngestionError, ResumeIngestionPipeline
+        rid = getattr(request.state, "request_id", "unknown")
         try:
             form = await request.form()
             file = _get_uploaded_file(form)
             filename = getattr(file, "filename", "resume")
             content = await file.read()
+            logger.info("parse_resume request_id=%s filename=%s content_type=%s size=%s", rid, filename, getattr(file, "content_type", ""), len(content))
             _validate_resume_upload(filename, content, getattr(file, "content_type", ""), _max_upload)
-            logger.info("resume_parse_received filename=%s content_type=%s size=%s", filename, getattr(file, "content_type", ""), len(content))
+            logger.info("parse_resume validated request_id=%s", rid)
             result = ResumeIngestionPipeline().ingest(content, filename, getattr(file, "content_type", ""), _max_upload)
+            logger.info("parse_resume success request_id=%s text_chars=%s", rid, result.get("metadata", {}).get("text_chars"))
             profile = db.query(UserProfile).filter(UserProfile.user_id == payload.get("sub")).first()
             if not profile:
                 profile = UserProfile(id=f"profile_{uuid.uuid4().hex}", user_id=payload.get("sub"))
@@ -723,17 +726,19 @@ def create_app(overridden_settings=None) -> FastAPI:
             db.refresh(version)
             return {"parsed": result["parsed"], "structured_resume": result["structured_resume"], "version": _row_to_dict(version), "metadata": result["metadata"]}
         except HTTPException:
+            logger.warning("parse_resume http_error request_id=%s", rid, exc_info=True)
             raise
         except ResumeFileValidationError as exc:
+            logger.warning("parse_resume validation_error request_id=%s error=%s", rid, exc)
             raise HTTPException(status_code=415, detail=str(exc))
         except ResumeIngestionError as exc:
-            logger.error("resume_parse_error error=%s", exc)
+            logger.error("parse_resume ingestion_error request_id=%s error=%s", rid, exc, exc_info=True)
             raise HTTPException(status_code=503, detail=str(exc))
         except ValueError as exc:
-            logger.error("resume_parse_validation_error error=%s", exc)
+            logger.error("parse_resume validation_error request_id=%s error=%s", rid, exc, exc_info=True)
             raise HTTPException(status_code=400, detail=str(exc))
         except Exception as exc:
-            logger.error("resume_parse_error error=%s", exc)
+            logger.error("parse_resume unhandled_error request_id=%s error=%s", rid, exc, exc_info=True)
             raise HTTPException(status_code=503, detail="Resume parser service temporarily unavailable. Please try again later.")
 
     @application.post("/api/profile/compare-resume")
