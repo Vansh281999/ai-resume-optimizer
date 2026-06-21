@@ -38,6 +38,7 @@ const faqs = [
 ];
 
 export function Landing() {
+  console.log('[PROD-DIAG] Landing rendered');
   return (
     <div className="overflow-hidden bg-slate-950 text-white">
       <header className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6">

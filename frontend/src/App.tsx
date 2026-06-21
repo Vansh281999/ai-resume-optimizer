@@ -47,6 +47,7 @@ function ProtectedRoute({ children, requireOnboarding = true }: { children: Reac
 }
 
 export default function App() {
+  console.log('[PROD-DIAG] App rendered');
   return (
     <Routes>
       <Route path="/" element={<Landing />} />

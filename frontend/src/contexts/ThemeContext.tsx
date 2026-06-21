@@ -27,7 +27,7 @@ function getInitialTheme(): Theme {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  console.log('ThemeProvider mounted');
+  console.log('[PROD-DIAG] ThemeProvider rendered');
   const [theme, setThemeState] = useState<Theme>(getInitialTheme);
 
   useEffect(() => {

@@ -30,8 +30,15 @@ function readStoredUser(): User | null {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  console.log('AuthProvider mounted');
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem('career_token'));
+  console.log('[PROD-DIAG] AuthProvider rendered');
+  const [token, setToken] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('career_token');
+    } catch (e) {
+      console.error('localStorage read error:', e);
+      return null;
+    }
+  });
   const [user, setUser] = useState<User | null>(readStoredUser);
   const [isLoading, setIsLoading] = useState(false);
   const { addToast } = useToast();

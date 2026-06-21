@@ -19,7 +19,7 @@ interface ToastContextValue {
 const ToastContext = createContext<ToastContextValue | null>(null);
 
 export function ToastProvider({ children }: { children: ReactNode }) {
-  console.log('ToastProvider mounted');
+  console.log('[PROD-DIAG] ToastProvider rendered');
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   const removeToast = (id: string) => {

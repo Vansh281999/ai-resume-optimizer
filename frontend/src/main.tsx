@@ -7,7 +7,13 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { ToastProvider } from './contexts/ToastContext';
 import './index.css';
 
-console.log('main loaded');
+console.log('[PROD-DIAG] main.tsx: script executed');
+window.addEventListener('error', (event) => {
+  console.error('[PROD-DIAG] window error:', event.error || event.message);
+});
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('[PROD-DIAG] unhandled rejection:', event.reason);
+});
 
 class GlobalErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }> {
   constructor(props: { children: React.ReactNode }) {
@@ -41,8 +47,6 @@ class GlobalErrorBoundary extends React.Component<{ children: React.ReactNode },
   }
 }
 
-console.log('creating root');
-
 try {
   const rootElement = document.getElementById('root');
   if (!rootElement) {
@@ -51,7 +55,7 @@ try {
   ReactDOM.createRoot(rootElement).render(
     <React.StrictMode>
       <GlobalErrorBoundary>
-        <HashRouter basename="/ai-resume-optimizer">
+        <HashRouter>
           <ThemeProvider>
             <ToastProvider>
               <AuthProvider>
