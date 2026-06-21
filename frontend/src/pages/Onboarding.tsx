@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Building2, Upload, UserRound } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { getProfile, completeOnboarding, parseResume, updateProfile } from '../lib/profile';
+import { getProfile, completeOnboarding, parseResume, updateProfile, addEducation, addExperience, addProject, addSkill } from '../lib/profile';
 import { ResumeDropzone } from '../components/ResumeDropzone';
 import type { User } from '../lib/api';
 
@@ -16,6 +16,7 @@ export default function Onboarding() {
     full_name: '', email: '', phone: '', location: '', linkedin_url: '', github_url: '', portfolio_url: '', headline: '', summary: '', career_objective: '',
   });
   const [loading, setLoading] = useState(false);
+  const [parsedData, setParsedData] = useState<any>(null);
 
   useEffect(() => {
     if (user?.onboarded) {
@@ -23,11 +24,84 @@ export default function Onboarding() {
     }
   }, [user, navigate]);
 
+  const saveParsedSections = async (data: any) => {
+    const token = localStorage.getItem('career_token');
+    if (!token || !data) return;
+
+    const savePromises: Promise<any>[] = [];
+
+    if (Array.isArray(data.education)) {
+      for (const edu of data.education) {
+        if (edu.degree || edu.institution) {
+          savePromises.push(
+            fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/profile/education`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify(edu),
+            }).then(r => r.json()).catch(() => null)
+          );
+        }
+      }
+    }
+
+    if (Array.isArray(data.experience)) {
+      for (const exp of data.experience) {
+        if (exp.title || exp.company) {
+          savePromises.push(
+            fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/profile/experience`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify(exp),
+            }).then(r => r.json()).catch(() => null)
+          );
+        }
+      }
+    }
+
+    if (Array.isArray(data.projects)) {
+      for (const proj of data.projects) {
+        if (proj.project_name) {
+          savePromises.push(
+            fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/profile/projects`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify(proj),
+            }).then(r => r.json()).catch(() => null)
+          );
+        }
+      }
+    }
+
+    const skills = data.skills || {};
+    if (typeof skills === 'object' && !Array.isArray(skills)) {
+      const skillEntries = Object.entries(skills).flatMap(([category, items]: [string, any]) =>
+        (Array.isArray(items) ? items : []).map((name: string) => ({ skill_name: name, category }))
+      );
+      for (const skill of skillEntries) {
+        if (skill.skill_name) {
+          savePromises.push(
+            fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/profile/skills`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify(skill),
+            }).then(r => r.json()).catch(() => null)
+          );
+        }
+      }
+    }
+
+    if (savePromises.length > 0) {
+      addToast(`Auto-saving ${savePromises.length} parsed items...`, 'info');
+      await Promise.allSettled(savePromises);
+    }
+  };
+
   const handleFile = async (file: File) => {
     setLoading(true);
     try {
       const data = await parseResume(file);
       const parsed = data?.parsed || {};
+      setParsedData(parsed);
       setForm({
         full_name: parsed.personal_info?.full_name || user?.name || '',
         email: parsed.personal_info?.email || user?.email || '',
@@ -53,6 +127,9 @@ export default function Onboarding() {
     setLoading(true);
     try {
       await updateProfile({ ...form });
+      if (parsedData) {
+        await saveParsedSections(parsedData);
+      }
       await completeOnboarding();
       const updated = { ...(user || { id: Date.now(), name: '', email: '' } as User), onboarded: true } as User;
       setUser(updated);

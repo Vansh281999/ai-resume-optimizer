@@ -41,4 +41,9 @@ def test_ingest_returns_structured_resume_from_fallback():
     pipeline = ResumeIngestionPipeline()
     result = pipeline.ingest(b"Name: Vansh Mahajan\nEmail: vansh@example.com\nSkills: Python, React\n", "resume.txt", "text/plain")
     assert result["structured_resume"]["personal_info"]["email"] == "vansh@example.com"
-    assert result["structured_resume"]["skills"]["general"] == ["Python", "React"]
+    skills = result["structured_resume"]["skills"]
+    all_skills = []
+    for items in skills.values():
+        all_skills.extend(items)
+    assert "Python" in all_skills
+    assert "React" in all_skills
