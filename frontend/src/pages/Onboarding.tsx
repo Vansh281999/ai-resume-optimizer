@@ -28,6 +28,8 @@ export default function Onboarding() {
     const token = localStorage.getItem('career_token');
     if (!token || !data) return;
 
+    const extractValue = (field: any) => typeof field === 'object' && field?.value !== undefined ? field.value : (field || '');
+
     const savePromises: Promise<any>[] = [];
 
     if (Array.isArray(data.education)) {
@@ -37,7 +39,15 @@ export default function Onboarding() {
             fetch(`${import.meta.env.VITE_API_URL || '/api'}/profile/education`, {
               method: 'POST',
               headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify(edu),
+              body: JSON.stringify({
+                degree: extractValue(edu.degree),
+                specialization: extractValue(edu.specialization),
+                institution: extractValue(edu.institution),
+                start_date: extractValue(edu.start_date),
+                end_date: extractValue(edu.end_date),
+                cgpa: extractValue(edu.cgpa),
+                description: extractValue(edu.description),
+              }),
             }).then(r => r.json()).catch(() => null)
           );
         }
@@ -51,7 +61,15 @@ export default function Onboarding() {
             fetch(`${import.meta.env.VITE_API_URL || '/api'}/profile/experience`, {
               method: 'POST',
               headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify(exp),
+              body: JSON.stringify({
+                title: extractValue(exp.title),
+                company: extractValue(exp.company),
+                location: extractValue(exp.location),
+                start_date: extractValue(exp.start_date),
+                end_date: extractValue(exp.end_date),
+                responsibilities: extractValue(exp.responsibilities),
+                achievements: extractValue(exp.achievements),
+              }),
             }).then(r => r.json()).catch(() => null)
           );
         }
@@ -65,7 +83,15 @@ export default function Onboarding() {
             fetch(`${import.meta.env.VITE_API_URL || '/api'}/profile/projects`, {
               method: 'POST',
               headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify(proj),
+              body: JSON.stringify({
+                project_name: extractValue(proj.project_name),
+                description: extractValue(proj.description),
+                technologies: extractValue(proj.technologies),
+                github_url: extractValue(proj.github_url),
+                live_url: extractValue(proj.live_url),
+                start_date: extractValue(proj.start_date),
+                end_date: extractValue(proj.end_date),
+              }),
             }).then(r => r.json()).catch(() => null)
           );
         }
@@ -102,17 +128,18 @@ export default function Onboarding() {
       const data = await parseResume(file);
       const parsed = data?.parsed || {};
       setParsedData(parsed);
+      const getFieldValue = (field: any) => typeof field === 'object' && field?.value !== undefined ? field.value : (field || '');
       setForm({
-        full_name: parsed.personal_info?.full_name || user?.name || '',
-        email: parsed.personal_info?.email || user?.email || '',
-        phone: parsed.personal_info?.phone || '',
-        location: parsed.personal_info?.location || '',
-        linkedin_url: parsed.personal_info?.linkedin_url || '',
-        github_url: parsed.personal_info?.github_url || '',
-        portfolio_url: parsed.personal_info?.portfolio_url || '',
-        headline: parsed.headline || '',
-        summary: parsed.summary || '',
-        career_objective: parsed.career_objective || '',
+        full_name: getFieldValue(parsed.personal_info?.full_name) || user?.name || '',
+        email: getFieldValue(parsed.personal_info?.email) || user?.email || '',
+        phone: getFieldValue(parsed.personal_info?.phone) || '',
+        location: getFieldValue(parsed.personal_info?.location) || '',
+        linkedin_url: getFieldValue(parsed.personal_info?.linkedin_url) || '',
+        github_url: getFieldValue(parsed.personal_info?.github_url) || '',
+        portfolio_url: getFieldValue(parsed.personal_info?.portfolio_url) || '',
+        headline: getFieldValue(parsed.headline) || '',
+        summary: getFieldValue(parsed.summary) || '',
+        career_objective: getFieldValue(parsed.career_objective) || '',
       });
       setMode('manual');
       addToast('Resume parsed. Review and update the fields.', 'success');
@@ -204,14 +231,14 @@ export default function Onboarding() {
         <p className="mt-2 text-slate-600 dark:text-slate-300">Fill in the essentials. You can update later.</p>
       </div>
       <div className="glass-card space-y-5">
-        <div className="grid gap-5 sm:grid-cols-2">
-          < Field name="full_name" label="Full Name" value={form.full_name} onChange={(v) => setForm({ ...form, full_name: v })} />
-          < Field name="email" label="Email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
-          < Field name="phone" label="Phone" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} />
-          < Field name="location" label="Location" value={form.location} onChange={(v) => setForm({ ...form, location: v })} />
-          < Field name="linkedin_url" label="LinkedIn URL" value={form.linkedin_url} onChange={(v) => setForm({ ...form, linkedin_url: v })} />
-          < Field name="github_url" label="GitHub URL" value={form.github_url} onChange={(v) => setForm({ ...form, github_url: v })} />
-          < Field name="portfolio_url" label="Portfolio" value={form.portfolio_url} onChange={(v) => setForm({ ...form, portfolio_url: v })} />
+<div className="grid gap-5 sm:grid-cols-2">
+           <Field name="full_name" label="Full Name" value={form.full_name} onChange={(v) => setForm({ ...form, full_name: v })} />
+           <Field name="email" label="Email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
+           <Field name="phone" label="Phone" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} />
+           <Field name="location" label="Location" value={form.location} onChange={(v) => setForm({ ...form, location: v })} />
+           <Field name="linkedin_url" label="LinkedIn URL" value={form.linkedin_url} onChange={(v) => setForm({ ...form, linkedin_url: v })} />
+           <Field name="github_url" label="GitHub URL" value={form.github_url} onChange={(v) => setForm({ ...form, github_url: v })} />
+           <Field name="portfolio_url" label="Portfolio" value={form.portfolio_url} onChange={(v) => setForm({ ...form, portfolio_url: v })} />
         </div>
         <Field name="headline" label="Headline" value={form.headline} onChange={(v) => setForm({ ...form, headline: v })} textarea />
         <Field name="summary" label="Professional Summary" value={form.summary} onChange={(v) => setForm({ ...form, summary: v })} textarea />
@@ -225,20 +252,66 @@ export default function Onboarding() {
   );
 }
 
-function Field({ name, label, value, onChange, textarea = false }: { name: string; label: string; value: string; onChange: (v: string) => void; textarea?: boolean }) {
-  const input = (
-    <input
-      id={name}
-      className="field-input"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={label}
-    />
+type FieldWithConfidence = string | { value: string; confidence: number };
+
+interface FieldProps {
+  name: string;
+  label: string;
+  value: FieldWithConfidence;
+  confidence?: number;
+  onChange: (v: string) => void;
+  textarea?: boolean;
+}
+
+function ConfidenceDot({ confidence }: { confidence?: number }) {
+  if (confidence === undefined) return null;
+  const getColor = (conf: number) => {
+    if (conf >= 0.9) return 'bg-green-500';
+    if (conf >= 0.7) return 'bg-yellow-500';
+    return 'bg-red-500';
+  };
+  const getLabel = (conf: number) => {
+    if (conf >= 0.9) return 'High confidence';
+    if (conf >= 0.7) return 'Medium confidence';
+    return 'Low confidence';
+  };
+  return (
+    <span className={`inline-block size-2 rounded-full ${getColor(confidence)}`} title={getLabel(confidence)} />
   );
+}
+
+function Field({ name, label, value, confidence, onChange, textarea = false }: FieldProps) {
+  const stringValue = typeof value === 'object' && value?.value !== undefined ? value.value : value;
+  const fieldConfidence = typeof value === 'object' && value?.confidence !== undefined ? value.confidence : confidence;
+  
+  const input = (
+    <div className="relative">
+      <input
+        id={name}
+        className="field-input pr-8"
+        value={stringValue}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={label}
+      />
+      {fieldConfidence !== undefined && (
+        <span className="absolute right-2 top-1/2 -translate-y-1/2">
+          <ConfidenceDot confidence={fieldConfidence} />
+        </span>
+      )}
+    </div>
+  );
+  
   return (
     <div>
       <label className="field-label" htmlFor={name}>{label}</label>
-      {textarea ? <textarea id={name} className="field-textarea" value={value} onChange={(e) => onChange(e.target.value)} /> : input}
+      {textarea ? (
+        <textarea 
+          id={name} 
+          className="field-textarea" 
+          value={stringValue} 
+          onChange={(e) => onChange(e.target.value)} 
+        />
+      ) : input}
     </div>
   );
 }
