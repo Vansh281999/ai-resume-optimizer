@@ -18,15 +18,166 @@ class ResumeFileValidationError(ResumeIngestionError):
     pass
 
 
-KNOWN_SKILL_CATEGORIES = {
-    "programming_languages": {"python", "java", "c++", "c#", "javascript", "typescript", "go", "rust", "ruby", "php", "swift", "kotlin", "scala", "r", "matlab", "perl", "lua", "dart", "objective-c", "sql", "html", "css"},
-    "frameworks": {"react", "angular", "vue", "next.js", "nuxt", "svelte", "django", "flask", "fastapi", "spring", "express", "nestjs", "asp.net", ".net", "laravel", "rails", "gatsby", "ember", "backbone", "jquery", "bootstrap", "tailwind", "material-ui", "chakra", "redux", "mobx", "graphql", "rest"},
-    "databases": {"postgresql", "mysql", "mongodb", "redis", "elasticsearch", "cassandra", "dynamodb", "sqlite", "oracle", "mariadb", "neo4j", "couchdb", "firestore", "supabase", "prisma", "sqlalchemy", "sequelize", "mongoose"},
-    "cloud_technologies": {"aws", "azure", "gcp", "google cloud", "heroku", "vercel", "netlify", "digitalocean", "linode", "cloudflare", "docker", "kubernetes", "terraform", "ansible", "jenkins", "circleci", "github actions", "gitlab ci"},
-    "devops_tools": {"docker", "kubernetes", "terraform", "ansible", "jenkins", "git", "github", "gitlab", "bitbucket", "ci/cd", "linux", "nginx", "apache", "bash", "powershell", "prometheus", "grafana"},
-    "ai_ml_technologies": {"tensorflow", "pytorch", "keras", "scikit-learn", "sklearn", "pandas", "numpy", "opencv", "huggingface", "langchain", "llm", "gpt", "bert", "transformers", "spacy", "nltk", "matplotlib", "seaborn", "plotly", "jupyter", "colab", "machine learning", "deep learning", "nlp", "computer vision"},
-    "soft_skills": {"leadership", "communication", "teamwork", "problem solving", "critical thinking", "agile", "scrum", "project management", "time management", "adaptability", "creativity", "collaboration", "mentoring", "public speaking", "negotiation", "stakeholder management"},
+CANONICAL_SKILLS = {
+    # Programming Languages
+    "python": "programming_languages", "java": "programming_languages", "c++": "programming_languages", "c#": "programming_languages",
+    "javascript": "programming_languages", "typescript": "programming_languages", "go": "programming_languages", "golang": "programming_languages",
+    "rust": "programming_languages", "ruby": "programming_languages", "php": "programming_languages", "swift": "programming_languages",
+    "kotlin": "programming_languages", "scala": "programming_languages", "r": "programming_languages", "matlab": "programming_languages",
+    "perl": "programming_languages", "lua": "programming_languages", "dart": "programming_languages", "objective-c": "programming_languages",
+    "sql": "programming_languages", "html": "programming_languages", "css": "programming_languages", "shell": "programming_languages",
+    "bash": "programming_languages", "powershell": "programming_languages", "c": "programming_languages", "assembly": "programming_languages",
+    "haskell": "programming_languages", "erlang": "programming_languages", "clojure": "programming_languages", "elixir": "programming_languages",
+    "f#": "programming_languages", "groovy": "programming_languages", "julia": "programming_languages", "sas": "programming_languages",
+    "awk": "programming_languages", "sed": "programming_languages",
+    # Frameworks & Libraries
+    "react": "frameworks", "react.js": "frameworks", "reactjs": "frameworks", "angular": "frameworks", "vue": "frameworks", "vue.js": "frameworks",
+    "next.js": "frameworks", "nextjs": "frameworks", "nuxt": "frameworks", "nuxt.js": "frameworks", "svelte": "frameworks", "sveltekit": "frameworks",
+    "django": "frameworks", "flask": "frameworks", "fastapi": "frameworks", "spring": "frameworks", "spring boot": "frameworks",
+    "express": "frameworks", "express.js": "frameworks", "nestjs": "frameworks", "asp.net": "frameworks", ".net": "frameworks",
+    "laravel": "frameworks", "rails": "frameworks", "ruby on rails": "frameworks", "gatsby": "frameworks", "ember": "frameworks",
+    "backbone": "frameworks", "backbone.js": "frameworks", "jquery": "frameworks", "bootstrap": "frameworks", "tailwind": "frameworks",
+    "tailwind css": "frameworks", "material-ui": "frameworks", "chakra": "frameworks", "chakra ui": "frameworks",
+    "redux": "frameworks", "mobx": "frameworks", "graphql": "frameworks", "rest": "frameworks", "rest api": "frameworks",
+    "jest": "frameworks", "mocha": "frameworks", "pytest": "frameworks", "junit": "frameworks", "cypress": "frameworks",
+    "selenium": "frameworks", "puppeteer": "frameworks", "playwright": "frameworks", "storybook": "frameworks",
+    "three.js": "frameworks", "d3.js": "frameworks", "chart.js": "frameworks", "socket.io": "frameworks",
+    "tensorflow": "ai_ml_technologies", "pytorch": "ai_ml_technologies", "keras": "ai_ml_technologies",
+    "scikit-learn": "ai_ml_technologies", "sklearn": "ai_ml_technologies", "pandas": "ai_ml_technologies",
+    "numpy": "ai_ml_technologies", "opencv": "ai_ml_technologies", "huggingface": "ai_ml_technologies",
+    "langchain": "ai_ml_technologies", "llm": "ai_ml_technologies", "gpt": "ai_ml_technologies", "bert": "ai_ml_technologies",
+    "transformers": "ai_ml_technologies", "spacy": "ai_ml_technologies", "nltk": "ai_ml_technologies",
+    "matplotlib": "ai_ml_technologies", "seaborn": "ai_ml_technologies", "plotly": "ai_ml_technologies",
+    "jupyter": "ai_ml_technologies", "colab": "ai_ml_technologies", "machine learning": "ai_ml_technologies",
+    "deep learning": "ai_ml_technologies", "nlp": "ai_ml_technologies", "computer vision": "ai_ml_technologies",
+    "data science": "ai_ml_technologies", "data analysis": "ai_ml_technologies",
+    # Databases
+    "postgresql": "databases", "mysql": "databases", "mongodb": "databases", "redis": "databases",
+    "elasticsearch": "databases", "cassandra": "databases", "dynamodb": "databases", "sqlite": "databases",
+    "oracle": "databases", "oracle db": "databases", "mariadb": "databases", "neo4j": "databases",
+    "couchdb": "databases", "firestore": "databases", "supabase": "databases", "prisma": "databases",
+    "sqlalchemy": "databases", "sequelize": "databases", "mongoose": "databases", "django orm": "databases",
+    # Cloud
+    "aws": "cloud_technologies", "azure": "cloud_technologies", "gcp": "cloud_technologies", "google cloud": "cloud_technologies",
+    "heroku": "cloud_technologies", "vercel": "cloud_technologies", "netlify": "cloud_technologies",
+    "digitalocean": "cloud_technologies", "linode": "cloud_technologies", "cloudflare": "cloud_technologies",
+    "aws ec2": "cloud_technologies", "aws s3": "cloud_technologies", "aws lambda": "cloud_technologies",
+    # DevOps
+    "docker": "devops_tools", "kubernetes": "devops_tools", "k8s": "devops_tools", "terraform": "devops_tools",
+    "ansible": "devops_tools", "jenkins": "devops_tools", "git": "devops_tools", "github": "devops_tools",
+    "gitlab": "devops_tools", "bitbucket": "devops_tools", "ci/cd": "devops_tools", "linux": "devops_tools",
+    "nginx": "devops_tools", "apache": "devops_tools", "bash": "devops_tools", "powershell": "devops_tools",
+    "prometheus": "devops_tools", "grafana": "devops_tools", "github actions": "devops_tools", "gitlab ci": "devops_tools",
+    "circleci": "devops_tools", "travis ci": "devops_tools", "argo cd": "devops_tools", "helm": "devops_tools",
+    "istio": "devops_tools", "envoy": "devops_tools", "vagrant": "devops_tools", "packer": "devops_tools",
+    # Soft Skills
+    "leadership": "soft_skills", "communication": "soft_skills", "teamwork": "soft_skills",
+    "problem solving": "soft_skills", "critical thinking": "soft_skills", "agile": "soft_skills",
+    "scrum": "soft_skills", "project management": "soft_skills", "time management": "soft_skills",
+    "adaptability": "soft_skills", "creativity": "soft_skills", "collaboration": "soft_skills",
+    "mentoring": "soft_skills", "public speaking": "soft_skills", "negotiation": "soft_skills",
+    "stakeholder management": "soft_skills", "conflict resolution": "soft_skills",
+    "strategic planning": "soft_skills", "team building": "soft_skills",
 }
+
+INDIAN_CITIES = {
+    "bangalore", "bengaluru", "mumbai", "bombay", "delhi", "new delhi", "hyderabad", "chennai", "madras",
+    "kolkata", "calcutta", "pune", "ahmedabad", "jaipur", "surat", "lucknow", "kanpur", "nagpur",
+    "indore", "thane", "bhopal", "visakhapatnam", "patna", "vadodara", "ludhiana", "agra", "nashik",
+    "faridabad", "meerut", "rajkot", "varanasi", "srinagar", "aurangabad", "dhanbad", "amritsar",
+    "navi mumbai", "prayagraj", "ranchi", "howrah", "coimbatore", "jabalpur", "gwalior", "vijayawada",
+    "jodhpur", "madurai", "raipur", "kota", "guwahati", "chandigarh", "solapur", "hubli", "dharwad",
+    "bhubaneswar", "trivandrum", "thiruvananthapuram", "kochi", "cochin", "mysore", "mysuru",
+    "vellore", "salem", "tiruchirappalli", "trichy", "coimbatore", "guntur", "bhavnagar", "dehradun",
+    "jamshedpur", "asansol", "allahabad", "gorakhpur", "aligarh", "bareilly", "moradabad",
+    "gurgaon", "gurugram", "noida", "faridabad", "ghaziabad", "thiruvananthapuram",
+    "vit vellore", "iit bombay", "iit delhi", "iit madras", "iit kharagpur", "iit kanpur",
+    "bits pilani", "bits goa", "bits hyderabad", "nit trichy", "nit warangal", "nit surat",
+}
+
+US_CITIES = {
+    "new york", "los angeles", "chicago", "houston", "phoenix", "philadelphia", "san antonio",
+    "san diego", "dallas", "san jose", "austin", "jacksonville", "fort worth", "columbus",
+    "charlotte", "san francisco", "indianapolis", "seattle", "denver", "washington", "boston",
+    "el paso", "nashville", "detroit", "portland", "memphis", "oklahoma city", "las vegas",
+    "louisville", "baltimore", "milwaukee", "albuquerque", "tucson", "fresno", "sacramento",
+    "mesa", "atlanta", "kansas city", "colorado springs", "raleigh", "omaha", "miami",
+    "long beach", "virginia beach", "oakland", "minneapolis", "tulsa", "tampa", "arlington",
+    "new orleans", "wichita", "cleveland", "bakersfield", "tacoma", "aurora", "anaheim",
+    "santa ana", "st louis", "riverside", "corpus christi", "lexington", "pittsburgh",
+    "anchorage", "stockton", "cincinnati", "st. paul", "toledo", "newark", "chandler",
+    "las vegas", "boulder", "palo alto", "mountain view", "sunnyvale", "santa clara",
+    "seattle", "redmond", "bellevue", "kirkland", "everett", "tacoma", "olympia",
+    "remote", "hybrid", "work from home", "wfh", "work-from-home",
+}
+
+
+class SectionClassifier:
+    SECTION_PATTERNS = {
+        "summary": [
+            r"^\s*(summary|professional[\s_]summary|executive[\s_]summary|profile|about[\s_]me|career[\s_]summary|personal[\s_]profile)\s*:?\s*$",
+        ],
+        "education": [
+            r"^\s*(education|academic|academics|qualification|qualifications|educational[\s_]background)\s*:?\s*$",
+        ],
+        "experience": [
+            r"^\s*(experience|work[\s_]experience|professional[\s_]experience|employment[\s_]history|work[\s_]history|professional[\s_]history|internship|internships)\s*:?\s*$",
+        ],
+        "projects": [
+            r"^\s*(projects?|personal[\s_]projects?|portfolio|academic[\s_]projects?|key[\s_]projects?)\s*:?\s*$",
+        ],
+        "skills": [
+            r"^\s*(skills?|technical[\s_]skills?|core[\s_]competenc(?:y|ies)|technologies|programming[\s_]languages|tools?\s*&?\s*technologies)\s*:?\s*$",
+        ],
+        "certifications": [
+            r"^\s*(certifications?|certificates?|certified|credentials?|licenses?|professional[\s_]certifications?)\s*:?\s*$",
+        ],
+        "achievements": [
+            r"^\s*(achievements?|awards?|honors?|recognitions?|accomplishments?)\s*:?\s*$",
+        ],
+    }
+
+    def classify(self, lines: List[str]) -> Dict[str, List[int]]:
+        sections = {}
+        current_section = "header"
+        for i, line in enumerate(lines):
+            lower = line.lower().strip()
+            matched = False
+            for section_name, patterns in self.SECTION_PATTERNS.items():
+                for pattern in patterns:
+                    if re.search(pattern, lower, re.IGNORECASE):
+                        current_section = section_name
+                        matched = True
+                        break
+                if matched:
+                    break
+            sections.setdefault(current_section, []).append(i)
+        return sections
+
+
+class ConfidenceScorer:
+    HIGH = 0.9
+    MEDIUM = 0.7
+    LOW = 0.5
+    VERY_LOW = 0.3
+
+    @staticmethod
+    def scored(value: Any, confidence: float) -> Dict[str, Any]:
+        return {"value": value if value is not None else "", "confidence": max(0.0, min(1.0, confidence))}
+
+    @classmethod
+    def from_match(cls, value: str, pattern_strength: str = "medium") -> Dict[str, Any]:
+        if pattern_strength == "high":
+            return cls.scored(value, cls.HIGH)
+        if pattern_strength == "medium":
+            return cls.scored(value, cls.MEDIUM)
+        return cls.scored(value, cls.LOW)
+
+    @classmethod
+    def best(cls, candidates: List[Dict[str, Any]]) -> Dict[str, Any]:
+        if not candidates:
+            return cls.scored("", cls.VERY_LOW)
+        return max(candidates, key=lambda c: c.get("confidence", 0))
 
 
 class ResumeIngestionPipeline:
@@ -360,13 +511,20 @@ class ResumeIngestionPipeline:
         lines = [line.strip() for line in text.splitlines() if line.strip()]
         full_text = "\n".join(lines)
 
-        personal = self._extract_personal_info(lines, full_text)
-        education = self._extract_education(lines)
-        experience = self._extract_experience(lines)
-        projects = self._extract_projects(lines)
-        skills_raw = self._extract_skills(lines)
+        classifier = SectionClassifier()
+        sections = classifier.classify(lines)
+
+        def section_lines(section_name: str) -> List[str]:
+            indices = sections.get(section_name, [])
+            return [lines[i] for i in indices]
+
+        personal = self._extract_personal_info(section_lines("header") or lines[:5], full_text)
+        education = self._extract_education(section_lines("education"))
+        experience = self._extract_experience(section_lines("experience"))
+        projects = self._extract_projects(section_lines("projects"))
+        skills_raw = self._extract_skills(section_lines("skills") or lines)
         categorized_skills = self._categorize_skills(skills_raw)
-        certifications = self._extract_certifications(lines)
+        certifications = self._extract_certifications(section_lines("certifications"))
 
         headline = self._extract_headline(lines, personal)
         summary = self._build_summary(lines)
@@ -393,6 +551,9 @@ class ResumeIngestionPipeline:
         phone_re = r"(?:\+?\d{1,3}[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}"
         linkedin_re = r"(?:https?://)?(?:www\.)?linkedin\.com/in/[A-Za-z0-9_-]+/?"
         github_re = r"(?:https?://)?(?:www\.)?github\.com/[A-Za-z0-9_.-]+/?"
+        leetcode_re = r"(?:https?://)?(?:www\.)?leetcode\.com/[A-Za-z0-9_-]+/?"
+        hackerrank_re = r"(?:https?://)?(?:www\.)?hackerrank\.com/[A-Za-z0-9_-]+/?"
+        portfolio_re = r"(?:https?://)?(?:www\.)?[A-Za-z0-9_-]+\.(?:vercel\.app|netlify\.app|herokuapp\.com|github\.io|me|dev)/[A-Za-z0-9_/-]*"
 
         for line in lines[:5]:
             if not info["email"]:
@@ -411,6 +572,38 @@ class ResumeIngestionPipeline:
                 m = re.search(github_re, line)
                 if m:
                     info["github_url"] = _clean_url(m.group(0))
+            if not info["portfolio_url"]:
+                m = re.search(portfolio_re, line, re.IGNORECASE)
+                if m:
+                    info["portfolio_url"] = _clean_url(m.group(0))
+
+        for line in lines[:5]:
+            if not info["linkedin_url"]:
+                m = re.search(linkedin_re, line)
+                if m:
+                    info["linkedin_url"] = _clean_url(m.group(0))
+            if not info["github_url"]:
+                m = re.search(github_re, line)
+                if m:
+                    info["github_url"] = _clean_url(m.group(0))
+            if not info["portfolio_url"]:
+                m = re.search(portfolio_re, line, re.IGNORECASE)
+                if m:
+                    info["portfolio_url"] = _clean_url(m.group(0))
+
+        for line in lines:
+            if not info["linkedin_url"]:
+                m = re.search(linkedin_re, line)
+                if m:
+                    info["linkedin_url"] = _clean_url(m.group(0))
+            if not info["github_url"]:
+                m = re.search(github_re, line)
+                if m:
+                    info["github_url"] = _clean_url(m.group(0))
+            if not info["portfolio_url"]:
+                m = re.search(portfolio_re, line, re.IGNORECASE)
+                if m:
+                    info["portfolio_url"] = _clean_url(m.group(0))
 
         # Name: first non-empty line that is not contact info
         for line in lines:
@@ -420,26 +613,39 @@ class ResumeIngestionPipeline:
                 continue
             if "linkedin" in line.lower() or "github" in line.lower():
                 continue
-            if len(line) < 60 and not any(kw in line.lower() for kw in ["university", "college", "skills", "experience", "education", "project", "summary", "objective", "profile"]):
+            if len(line) < 60 and not any(kw in line.lower() for kw in ["university", "college", "skills", "experience", "education", "project", "summary", "objective", "profile", "career", "internship", "employment"]):
                 info["full_name"] = line
                 break
 
-        # Location: look for city/state/country patterns in first 3 lines only
-        # Avoid matching "at <company>" patterns from experience lines
-        company_after_at_re = r"^(?!.*(?:Engineer|Developer|Manager|Analyst|Intern|Director|Lead|Consultant|SDE|Architect)).*?(?:at|in|from)\s+([A-Za-z][A-Za-z\s]+,\s*[A-Za-z\s]+)$"
-        for line in lines[:3]:
+        # Location: check first 5 lines for city/state patterns
+        # Must NOT be preceded by job title keywords (to avoid "Engineer at Google, CA")
+        title_keywords = r"(?:Engineer|Developer|SDE|Manager|Analyst|Designer|Architect|Consultant|Intern|Lead|Director|VP|Head|Specialist|Coordinator|Associate|Executive|Officer|Scientist|Researcher|Advisor|Strategist)"
+        for line in lines[:5]:
             if not info["location"]:
-                m = re.search(company_after_at_re, line, re.IGNORECASE)
-                if m:
-                    info["location"] = m.group(1).strip()
+                m = re.search(r"(?:at|in|from)\s+([A-Za-z][A-Za-z\s]+,\s*[A-Za-z\s]+)", line, re.IGNORECASE)
+                if m and not re.search(title_keywords, line, re.IGNORECASE):
+                    candidate = m.group(1).strip()
+                    if candidate.lower() not in INDIAN_CITIES and candidate.lower() not in US_CITIES:
+                        continue
+                    info["location"] = candidate
                     break
         if not info["location"]:
-            for line in lines[:3]:
+            for line in lines[:5]:
                 parts = re.split(r'\||,', line)
                 for p in parts:
                     p = p.strip()
-                    if re.match(r'^[A-Za-z\s]+,\s*[A-Za-z\s]+$', p) and len(p) < 50 and not re.search(email_re, p) and not re.search(phone_re, p):
-                        info["location"] = p
+                    if re.match(r'^[A-Za-z\s]+,\s*[A-Za-z]{2}$', p) and len(p) < 50:
+                        if p.lower() in US_CITIES or p.lower() in INDIAN_CITIES:
+                            info["location"] = p
+                            break
+                if info["location"]:
+                    break
+        if not info["location"]:
+            for line in lines[:5]:
+                for city in INDIAN_CITIES | US_CITIES:
+                    pattern = r'\b' + re.escape(city) + r'\b'
+                    if re.search(pattern, line, re.IGNORECASE):
+                        info["location"] = city.title()
                         break
                 if info["location"]:
                     break
@@ -480,7 +686,7 @@ class ResumeIngestionPipeline:
 
     def _extract_education(self, lines: List[str]) -> List[Dict[str, str]]:
         results = []
-        degree_keywords = r"(?:B\.?Tech|BE|BSc|B\.Sc|BTech|MCA|MBA|M\.?Tech|MTech|MSc|M\.Sc|PhD|Ph\.D|M\.E|ME|B\.E|BCA|MCA|Diploma|B\.Com|M\.Com|BBA|MBA|BA|MA)"
+        degree_keywords = r"\b(?:B\.?Tech|BE|BSc|B\.Sc|BTech|BS|Bachelor|B\.S|BCA|MCA|MBA|M\.?Tech|MTech|MSc|M\.Sc|MS|Master|M\.S|PhD|Ph\.D|M\.E|ME|B\.E|Diploma|B\.Com|M\.Com|BBA|BA|MA)\b"
         year_re = r"(?:19|20)\d{2}"
         cgpa_re = r"(?:CGPA|GPA|CPI)[\s:]*([0-9](?:\.[0-9])?)"
         institution_keywords = r"(?:University|College|Institute|School|Academy|IIT|NIT|VIT|MIT|Bits|IIIT)"
@@ -490,7 +696,7 @@ class ResumeIngestionPipeline:
 
         for i, line in enumerate(lines):
             lower = line.lower()
-            if re.search(r'\b(education|academic|qualification|academics?)\b', lower) and not current_entry:
+            if re.search(r'\b(education|academic|academics|qualification|qualifications)\b', lower) and not current_entry:
                 in_education = True
                 continue
             if re.search(r'\b(experience|work|employment|internship|project|certification|skills?)\b', lower) and in_education:
@@ -512,23 +718,21 @@ class ResumeIngestionPipeline:
                 if current_entry:
                     results.append(current_entry)
                 current_entry = {"degree": "", "specialization": "", "institution": "", "start_date": "", "end_date": "", "cgpa": "", "description": ""}
-                degree_text = line[:degree_m.end()]
-                current_entry["degree"] = _clean_string(degree_text)
-                after_degree = line[degree_m.end():]
+                after_degree = line[degree_m.start():]
                 inst_m = re.search(institution_keywords, after_degree, re.IGNORECASE)
                 if inst_m:
-                    spec = after_degree[:inst_m.start()].strip(" ,-")
-                    current_entry["specialization"] = _clean_string(spec)
+                    degree_text = after_degree[:inst_m.start()]
+                    current_entry["degree"] = _clean_string(degree_text)
                     current_entry["institution"] = _clean_string(after_degree[inst_m.start():])
                 else:
                     parts = after_degree.split(",")
                     if len(parts) >= 2:
-                        current_entry["specialization"] = _clean_string(parts[0].strip(" -"))
+                        current_entry["degree"] = _clean_string(parts[0].strip(" -"))
                         current_entry["institution"] = _clean_string(",".join(parts[1:]))
                     else:
-                        current_entry["specialization"] = _clean_string(after_degree)
+                        current_entry["degree"] = _clean_string(after_degree)
 
-            elif current_entry and (re.search(institution_keywords, line, re.IGNORECASE) or (not current_entry["institution"] and len(line) > 5)):
+            elif current_entry and (re.search(institution_keywords, line, re.IGNORECASE) or (not current_entry["institution"] and len(line) > 5 and not re.search(year_re, line))):
                 if not current_entry["institution"]:
                     current_entry["institution"] = _clean_string(line)
 
@@ -567,7 +771,6 @@ class ResumeIngestionPipeline:
         results = []
         title_keywords = r"(?:Engineer|Developer|SDE|Manager|Analyst|Designer|Architect|Consultant|Intern|Lead|Director|VP|Head|Specialist|Coordinator|Associate|Executive|Officer|Scientist|Researcher|Advisor|Strategist)"
         company_keywords = r"(?:Inc|LLC|Ltd|Corp|Company|Corporation|Technologies|Solutions|Systems|Services|Labs|Startup|Amazon|Google|Meta|Microsoft|Apple|Netflix|Uber|Airbnb|Spotify|Adobe|Oracle|Salesforce|IBM|Intel|AMD|NVIDIA|Tesla|SpaceX|Flipkart|Zomato|Swiggy|Paytm|Ola|Reliance|TCS|Infosys|Wipro|HCL|TechMahindra|Accenture|Deloitte|KPMG|EY|PwC)"
-        duration_re = r"(?:19|20)\d{2}\s*[-–—]\s*(?:Present|(?:19|20)\d{2})"
 
         current_entry: Dict[str, str] = {}
         in_exp = False
@@ -577,7 +780,7 @@ class ResumeIngestionPipeline:
             if re.search(r'\b(experience|work|employment|professional|internship)\b', lower) and not current_entry:
                 in_exp = True
                 continue
-            if re.search(r'\b(education|project|skill|certification|summary|objective|achievement)\b', lower) and in_exp:
+            if re.search(r'\b(education|project|skill|certification|summary|objective)\b', lower) and in_exp:
                 in_exp = False
                 if current_entry:
                     results.append(current_entry)
@@ -600,24 +803,23 @@ class ResumeIngestionPipeline:
                 current_entry["company"] = _clean_string(role_company_m.group(2))
                 if role_company_m.group(3):
                     dates = role_company_m.group(3).strip()
-                    years = re.findall(r"(19|20)\d{2}", dates)
+                    years = re.findall(r"(?:19|20)\d{2}", dates)
                     if years:
                         current_entry["start_date"] = years[0]
                         current_entry["end_date"] = years[-1] if len(years) > 1 else ""
                 continue
 
-            if re.search(company_keywords, line, re.IGNORECASE):
-                if not current_entry.get("company"):
-                    current_entry["company"] = _clean_string(line)
-                    continue
+            if re.search(company_keywords, line, re.IGNORECASE) and not current_entry.get("company"):
+                current_entry["company"] = _clean_string(line)
+                continue
 
-            if re.search(title_keywords, line, re.IGNORECASE) and not current_entry.get("title"):
+            if re.search(r'^' + title_keywords, line, re.IGNORECASE) and not current_entry.get("title"):
                 current_entry["title"] = _clean_string(line)
                 continue
 
-            dates_m = re.search(duration_re, line, re.IGNORECASE)
+            dates_m = re.search(r"(?:19|20)\d{2}\s*[-–—]\s*(?:Present|(?:19|20)\d{2})", line, re.IGNORECASE)
             if dates_m:
-                years = re.findall(r"(19|20)\d{2}", dates_m.group(0))
+                years = re.findall(r"(?:19|20)\d{2}", dates_m.group(0))
                 if len(years) >= 2:
                     current_entry["start_date"] = years[0]
                     current_entry["end_date"] = years[1]
@@ -630,6 +832,11 @@ class ResumeIngestionPipeline:
                         current_entry["responsibilities"] = bullet
                     else:
                         current_entry["responsibilities"] += "\n" + bullet
+            elif current_entry and not re.search(r"^\s*(?:19|20)\d{2}\s*[-–—]\s*(?:Present|(?:19|20)\d{2})\s*$", line, re.IGNORECASE) and not re.search(r"^(?:\w[\w\s]+)\s+at\s+(?:\w[\w\s]+)", line, re.IGNORECASE) and not re.search(r"^(?:Inc|LLC|Ltd|Corp|Company|Corporation|Technologies|Solutions|Systems|Services|Labs|Startup)", line, re.IGNORECASE) and not re.search(r"^(?:B\.?Tech|BE|BSc|M\.?Tech|MTech|MBA|PhD|BS|MS|Bachelor|Master)", line, re.IGNORECASE) and len(line) > 5:
+                if not current_entry.get("responsibilities"):
+                    current_entry["responsibilities"] = line
+                else:
+                    current_entry["responsibilities"] += "\n" + line
 
         if current_entry:
             results.append(current_entry)
@@ -639,30 +846,26 @@ class ResumeIngestionPipeline:
     def _extract_projects(self, lines: List[str]) -> List[Dict[str, str]]:
         results = []
         current_entry: Dict[str, str] = {}
-        in_projects = False
 
         for i, line in enumerate(lines):
             lower = line.lower()
-            if re.search(r'\b(projects?|portfolio|personal\s+project)\b', lower) and 'certification' not in lower:
-                in_projects = True
+            if re.search(r'\b(projects?|portfolio|academic[\s_]projects?|key[\s_]projects?)\b', lower) and 'certification' not in lower:
+                if current_entry:
+                    results.append(current_entry)
+                    current_entry = {}
                 continue
-            if re.search(r'\b(education|experience|skill|certification|summary|objective|achievement)\b', lower) and in_projects:
-                in_projects = False
+            if re.search(r'\b(education|experience|skill|certification|summary|objective|achievement|award|honor|interest|hobby|language|declaration)\b', lower):
                 if current_entry:
                     results.append(current_entry)
                     current_entry = {}
                 continue
 
-            if current_entry and not in_projects:
-                results.append(current_entry)
-                current_entry = {}
-
-            if not in_projects:
-                continue
-
             if not current_entry:
-                if line and not re.search(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", line):
-                    current_entry = {"project_name": _clean_string(line), "description": "", "technologies": "", "github_url": "", "live_url": "", "start_date": "", "end_date": ""}
+                if line and not re.search(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]\.[A-Za-z]{2,}", line):
+                    entry = {"project_name": _clean_string(line), "description": "", "technologies": "", "github_url": "", "live_url": "", "start_date": "", "end_date": ""}
+                    parsed_first = self._parse_project_line(line)
+                    entry.update(parsed_first)
+                    current_entry = entry
                     continue
 
             github_m = re.search(r"github\.com/[A-Za-z0-9_.-]+/?", line)
@@ -688,65 +891,109 @@ class ResumeIngestionPipeline:
 
         return results if results else []
 
+    def _parse_project_line(self, line: str) -> Dict[str, str]:
+        result = {"project_name": "", "technologies": "", "github_url": "", "live_url": ""}
+        parts = re.split(r'\s+-\s+', line)
+        if len(parts) >= 1:
+            result["project_name"] = _clean_string(parts[0])
+        if len(parts) >= 2:
+            tech_or_url = parts[1]
+            if re.search(r"github\.com/[A-Za-z0-9_.-]+/?", tech_or_url):
+                result["github_url"] = _clean_url(tech_or_url)
+            elif re.search(r"https?://", tech_or_url):
+                result["live_url"] = tech_or_url
+            else:
+                result["technologies"] = _clean_string(tech_or_url)
+        if len(parts) >= 3:
+            last = parts[-1]
+            if re.search(r"github\.com/[A-Za-z0-9_.-]+/?", last):
+                result["github_url"] = _clean_url(last)
+            elif re.search(r"https?://", last):
+                result["live_url"] = last
+            elif not result["technologies"]:
+                result["technologies"] = _clean_string(last)
+        if len(parts) > 3 and not result["technologies"]:
+            result["technologies"] = _clean_string(" ".join(parts[1:-1]))
+        if not result["project_name"]:
+            result["project_name"] = _clean_string(line)
+        return result
+
     def _extract_skills(self, lines: List[str]) -> List[str]:
         skills: List[str] = []
         skill_section = False
+        section_headers = re.compile(r'^\s*(education|experience|project|certification|summary|objective|achievement|award|honor|reference|interest|hobby|language|declaration)\s*:?\s*$', re.IGNORECASE)
+        skill_start = re.compile(r'^\s*(skills?|technical[\s_]skills?|core[\s_]competenc(?:y|ies)|technologies|programming[\s_]languages|tools?\s*&?\s*technologies)\s*:?', re.IGNORECASE)
+        
         for line in lines:
-            lower = line.lower()
-            if re.search(r'^\s*skills?\s*:?\s*$', lower) or re.search(r'^\s*skills?\s*:\s*', lower):
+            lower = line.lower().strip()
+            if skill_start.match(lower):
                 skill_section = True
-                if ':' in line:
-                    inline = line.split(':', 1)[1].strip()
-                    if inline:
-                        items = re.split(r'[,;|/\u00b7\u2022]+', inline)
-                        for item in items:
-                            item = item.strip()
-                            if item and len(item) > 1 and not re.search(r'[^\x00-\x7F]', item):
-                                skills.append(item)
+                inline_skills = re.split(r'[,;|/·•]+', line.split(':', 1)[-1].strip()) if ':' in line else []
+                for item in inline_skills:
+                    item = item.strip()
+                    if item and len(item) > 1 and not re.search(r'[^\x00-\x7F]', item) and not section_headers.match(item):
+                        skills.append(item)
                 continue
-            if skill_section and re.search(r'^\s*(education|experience|project|certification|summary|objective)\s*:?\s*$', lower):
+            if skill_section and section_headers.match(lower):
                 skill_section = False
                 continue
             if not skill_section:
                 continue
-            if line:
-                items = re.split(r'[,;|/\u00b7\u2022]+', line)
+            if line and not section_headers.match(lower):
+                items = re.split(r'[,;|/·•]+', line)
                 for item in items:
                     item = item.strip()
-                    if item and len(item) > 1 and not re.search(r'[^\x00-\x7F]', item):
+                    if item and len(item) > 1 and not re.search(r'[^\x00-\x7F]', item) and not section_headers.match(item):
                         skills.append(item)
         return skills
 
     def _categorize_skills(self, skills: List[str]) -> Dict[str, List[str]]:
-        categorized: Dict[str, List[str]] = {k: [] for k in KNOWN_SKILL_CATEGORIES}
+        categorized: Dict[str, List[str]] = {}
         uncategorized: List[str] = []
         for skill in skills:
-            placed = False
-            for category, keywords in KNOWN_SKILL_CATEGORIES.items():
-                if skill.lower() in keywords or any(kw in skill.lower() for kw in keywords):
-                    if skill not in categorized[category]:
-                        categorized[category].append(skill)
-                    placed = True
-                    break
-            if not placed and skill not in uncategorized:
-                uncategorized.append(skill)
+            normalized = self._normalize_skill_name(skill)
+            category = CANONICAL_SKILLS.get(normalized)
+            if category:
+                if category not in categorized:
+                    categorized[category] = []
+                if skill not in categorized[category]:
+                    categorized[category].append(skill)
+            else:
+                if skill not in uncategorized:
+                    uncategorized.append(skill)
         if uncategorized:
             categorized.setdefault("general", [])
             categorized["general"].extend(uncategorized)
-        return {k: v for k, v in categorized.items() if v}
+        return categorized
+
+    @staticmethod
+    def _normalize_skill_name(skill: str) -> str:
+        normalized = skill.lower().strip()
+        aliases = {
+            "js": "javascript", "ts": "typescript", "k8s": "kubernetes", "ml": "machine learning",
+            "ai": "artificial intelligence", "devops": "ci/cd", "cicd": "ci/cd",
+            "node": "node.js", "reactjs": "react", "vuejs": "vue", "next": "next.js",
+            "expressjs": "express", "springboot": "spring boot", "spring-boot": "spring boot",
+            "postgres": "postgresql", "mongo": "mongodb", "redis cache": "redis",
+            "aws cloud": "aws", "azure cloud": "azure", "gcp cloud": "gcp",
+            "docker container": "docker", "k8s orchestration": "kubernetes",
+        }
+        return aliases.get(normalized, normalized)
 
     def _extract_certifications(self, lines: List[str]) -> List[Dict[str, str]]:
         results = []
         current: Dict[str, str] = {}
-        cert_keywords = r"(?:certification|certificate|certified|license)"
-        in_cert = False
+        cert_keywords = r"(?:certification|certificate|certified|credential|license)"
+        cert_section_start = re.compile(r'^\s*(certifications?|certificates?|certified|credentials?|licenses?)\s*:?\s*$', re.IGNORECASE)
+        section_end = re.compile(r'^\s*(education|experience|skill|project|summary|objective|achievement|award|honor|interest|hobby|language|declaration|projects?)\s*:?\s*$', re.IGNORECASE)
 
+        in_cert = False
         for line in lines:
-            lower = line.lower()
-            if re.search(cert_keywords, lower) and not current:
+            lower = line.lower().strip()
+            if cert_section_start.match(lower):
                 in_cert = True
                 continue
-            if in_cert and re.search(r'^\s*(education|experience|skill|project|summary|objective)\s*:?\s*$', lower):
+            if in_cert and section_end.match(lower):
                 in_cert = False
                 if current:
                     results.append(current)
@@ -757,11 +1004,11 @@ class ResumeIngestionPipeline:
             if not current:
                 current = {"certification_name": _clean_string(line), "issuer": "", "issue_date": "", "expiry_date": "", "credential_url": ""}
                 continue
-            issuer_m = re.search(r"(?:by|from|issued by|offered by)\s+(.+)", line, re.IGNORECASE)
+            issuer_m = re.search(r"(?:by|from|issued by|offered by|from)\s+(.+)", line, re.IGNORECASE)
             if issuer_m:
                 current["issuer"] = _clean_string(issuer_m.group(1))
                 continue
-            date_m = re.search(r"(19|20)\d{2}", line)
+            date_m = re.search(r"(?:19|20)\d{2}", line)
             if date_m:
                 if not current["issue_date"]:
                     current["issue_date"] = date_m.group(0)
