@@ -281,8 +281,17 @@ function ConfidenceDot({ confidence }: { confidence?: number }) {
 }
 
 function Field({ name, label, value, confidence, onChange, textarea = false }: FieldProps) {
-  const stringValue = typeof value === 'object' && value?.value !== undefined ? value.value : value;
-  const fieldConfidence = typeof value === 'object' && value?.confidence !== undefined ? value.confidence : confidence;
+  const getStringValue = (field: FieldWithConfidence): string => {
+    if (typeof field === 'object' && field?.value !== undefined) return field.value;
+    return String(field || '');
+  };
+  const getFieldConfidence = (field: FieldWithConfidence, optConf?: number): number | undefined => {
+    if (typeof field === 'object' && field?.confidence !== undefined) return field.confidence;
+    return optConf;
+  };
+  
+  const stringValue = getStringValue(value);
+  const fieldConfidence = getFieldConfidence(value, confidence);
   
   const input = (
     <div className="relative">
