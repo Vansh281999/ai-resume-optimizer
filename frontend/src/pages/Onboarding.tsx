@@ -34,7 +34,7 @@ export default function Onboarding() {
       for (const edu of data.education) {
         if (edu.degree || edu.institution) {
           savePromises.push(
-            fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/profile/education`, {
+            fetch(`${import.meta.env.VITE_API_URL || '/api'}/profile/education`, {
               method: 'POST',
               headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
               body: JSON.stringify(edu),
@@ -48,7 +48,7 @@ export default function Onboarding() {
       for (const exp of data.experience) {
         if (exp.title || exp.company) {
           savePromises.push(
-            fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/profile/experience`, {
+            fetch(`${import.meta.env.VITE_API_URL || '/api'}/profile/experience`, {
               method: 'POST',
               headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
               body: JSON.stringify(exp),
@@ -62,7 +62,7 @@ export default function Onboarding() {
       for (const proj of data.projects) {
         if (proj.project_name) {
           savePromises.push(
-            fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/profile/projects`, {
+            fetch(`${import.meta.env.VITE_API_URL || '/api'}/profile/projects`, {
               method: 'POST',
               headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
               body: JSON.stringify(proj),
@@ -80,7 +80,7 @@ export default function Onboarding() {
       for (const skill of skillEntries) {
         if (skill.skill_name) {
           savePromises.push(
-            fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/profile/skills`, {
+            fetch(`${import.meta.env.VITE_API_URL || '/api'}/profile/skills`, {
               method: 'POST',
               headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
               body: JSON.stringify(skill),

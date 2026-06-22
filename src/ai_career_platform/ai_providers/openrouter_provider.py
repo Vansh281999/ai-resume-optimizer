@@ -27,7 +27,7 @@ class OpenRouterProvider(BaseLLMProvider):
                     headers={
                         "Authorization": f"Bearer {self.api_key}",
                         "Content-Type": "application/json",
-                        "HTTP-Referer": "http://localhost",
+                        "HTTP-Referer": "https://ai-resume-optimizer-dium.onrender.com",
                         "X-Title": "AI Career Platform",
                     },
                     timeout=timeout,

@@ -1,9 +1,11 @@
+import os
+
 from .base import BaseLLMProvider, AIMessage
 
 class OllamaProvider(BaseLLMProvider):
-    def __init__(self, model: str = "llama3", base_url: str = "http://localhost:11434"):
+    def __init__(self, model: str = "llama3", base_url: str = ""):
         self.model = model
-        self.base_url = base_url.rstrip("/")
+        self.base_url = base_url or os.getenv("OLLAMA_BASE_URL", "").rstrip("/")
 
     def generate(self, messages, **kwargs):
         import httpx

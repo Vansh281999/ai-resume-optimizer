@@ -33,7 +33,7 @@ const pricing = [
 const faqs = [
   { question: 'Does the analyzer replace human resume review?', answer: 'No. It gives instant AI-powered feedback so you can improve your resume before asking a mentor, recruiter, or career coach for review.' },
   { question: 'Can I use the platform for different roles?', answer: 'Yes. Paste the target job description or keywords for each application and the platform tailors scoring, matching, and interview preparation.' },
-  { question: 'Where is my data sent?', answer: 'The frontend calls the configured API at http://localhost:8000/api. Review your backend privacy policy before uploading sensitive documents.' },
+  { question: 'Where is my data sent?', answer: 'The frontend calls the configured API endpoint. Your data is processed securely and never stored longer than needed for your session.' },
   { question: 'What makes the job match useful?', answer: 'It separates skill match, experience match, missing skills, recommended keywords, and detailed reasoning so you know exactly what to improve.' },
 ];
 

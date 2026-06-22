@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     OPENROUTER_API_KEY: str = ""
     GROQ_API_KEY: str = ""
-    OLLAMA_BASE_URL: str = "http://localhost:11434"
+    OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "")
     OLLAMA_API_KEY: str = ""
     SERPER_API_KEY: str = ""
     DATABASE_URL: str = "sqlite:///./career_platform.db"
