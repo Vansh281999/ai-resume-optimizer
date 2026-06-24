@@ -563,6 +563,34 @@ def create_app(overridden_settings=None) -> FastAPI:
         db.refresh(profile)
         return {"profile": _profile_to_dict(profile), "completeness": profile.completion_score, "onboarded": True}
 
+    def _calculate_completion(profile) -> int:
+        score = 0
+        if profile.full_name:
+            score += 10
+        if profile.email:
+            score += 10
+        if profile.phone:
+            score += 10
+        if profile.location:
+            score += 10
+        if profile.headline:
+            score += 10
+        if profile.summary:
+            score += 10
+        if profile.career_objective:
+            score += 10
+        for item in (getattr(profile, "education", []) or []):
+            score += 5
+        for item in (getattr(profile, "experience", []) or []):
+            score += 5
+        for item in (getattr(profile, "projects", []) or []):
+            score += 5
+        for skill in (getattr(profile, "skills", []) or []):
+            score += 2
+        for cert in (getattr(profile, "certifications", []) or []):
+            score += 3
+        return min(score, 100)
+
     def _assert_profile_owner(profile_id: str, payload: Dict, db: Session):
         from ai_career_platform.db.models import UserProfile
         profile = db.get(UserProfile, profile_id)

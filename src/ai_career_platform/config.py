@@ -21,19 +21,24 @@ class Settings(BaseSettings):
     SERPER_API_KEY: str = ""
     DATABASE_URL: str = "sqlite:///./career_platform.db"
     SECRET_KEY: str = ""
-    DEBUG: bool = False
-    LOG_LEVEL: str = "INFO"
+    DEV_MODE: bool = False
+    CORS_ORIGINS: str = "https://vansh281999.github.io"
     MAX_UPLOAD_SIZE_BYTES: int = 10 * 1024 * 1024
     ALLOWED_UPLOAD_EXTENSIONS: str = ".pdf,.docx,.txt"
     ACCESS_TOKEN_EXPIRE_HOURS: int = 24
+    MAX_INPUT_LENGTH: int = 50000
 
     def validated_secret_key(self) -> str:
         key = self.SECRET_KEY
         if not key or key in ("replace-me-with-a-secure-secret", "dev-secret-change-me"):
-            raise ValueError(
-                "SECRET_KEY must be set. "
-                "Generate: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
-            )
+            if self.DEV_MODE:
+                import secrets as _secrets
+                key = _secrets.token_urlsafe(32)
+            else:
+                raise ValueError(
+                    "SECRET_KEY must be set. "
+                    "Generate: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+                )
         return key
 
     @property
