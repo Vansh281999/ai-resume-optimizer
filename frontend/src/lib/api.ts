@@ -87,13 +87,17 @@ export interface AnalyticsTrendsResponse {
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
+function getToken(): string | null {
+  return localStorage.getItem('career_token') || sessionStorage.getItem('career_token');
+}
+
 export const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 120000,
 });
 
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  const token = localStorage.getItem('career_token');
+  const token = getToken();
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -103,6 +107,13 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError<{ detail?: string; message?: string }>) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('career_token');
+      localStorage.removeItem('career_user');
+      sessionStorage.removeItem('career_token');
+      sessionStorage.removeItem('career_user');
+      window.location.href = '/login';
+    }
     const backendMessage = error.response?.data?.detail || error.response?.data?.message || error.message;
     return Promise.reject(new Error(getErrorMessage(backendMessage)));
   },

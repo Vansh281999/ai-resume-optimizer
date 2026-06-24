@@ -9,6 +9,7 @@ export function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -21,7 +22,7 @@ export function Login() {
       return;
     }
     try {
-      await login(emailVal, passVal);
+      await login(emailVal, passVal, rememberMe);
       navigate('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed. Please try again.');
@@ -87,6 +88,16 @@ export function Login() {
                   </button>
                 </div>
               </div>
+              <div className="flex items-center">
+                <input
+                  id="remember"
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="size-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                />
+                <label htmlFor="remember" className="ml-2 text-sm text-slate-600 dark:text-slate-400">Remember me on this device</label>
+              </div>
               <button className="btn-primary w-full" type="submit" disabled={isLoading}>
                 {isLoading ? 'Signing in...' : 'Sign in'}
                 {!isLoading && <ArrowRight className="size-4" />}
@@ -111,7 +122,7 @@ export function Login() {
             <p className="mt-6 text-lg leading-8 text-slate-300">Login to access ATS scoring, job matching, interview prep, career roadmaps, and analytics in one dashboard.</p>
             <div className="mt-10 grid gap-4">
               {[
-                ['Secure token storage', 'Your session token is stored locally as career_token.'],
+                ['Secure token storage', 'Your session token is stored securely.'],
                 ['Personalized insights', 'Use your resume and target roles to generate relevant feedback.'],
                 ['Fast workflow', 'Move from resume review to interview practice in minutes.'],
               ].map(([title, description]) => (
