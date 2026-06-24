@@ -548,21 +548,6 @@ def create_app(overridden_settings=None) -> FastAPI:
             "job_preferences": _row_to_dict(db.query(JobPreference).filter(JobPreference.profile_id == profile.id).first()) if db.query(JobPreference).filter(JobPreference.profile_id == profile.id).first() else None,
         }
 
-    @application.put("/api/profile")
-    def update_profile(req: _ProfileUpdateReq, payload: Dict = Depends(_require_auth), db: Session = Depends(get_db)):
-        from ai_career_platform.db.models import UserProfile
-        profile = db.query(UserProfile).filter(UserProfile.user_id == payload.get("sub")).first()
-        if not profile:
-            profile = UserProfile(id=f"profile_{uuid.uuid4().hex}", user_id=payload.get("sub"))
-            db.add(profile)
-        updates = req.model_dump(exclude_unset=True)
-        for field, value in updates.items():
-            setattr(profile, field, value)
-        profile.completion_score = _calculate_completion(profile)
-        db.commit()
-        db.refresh(profile)
-        return {"profile": _profile_to_dict(profile), "completeness": profile.completion_score, "onboarded": True}
-
     def _calculate_completion(profile) -> int:
         score = 0
         if profile.full_name:
@@ -590,6 +575,43 @@ def create_app(overridden_settings=None) -> FastAPI:
         for cert in (getattr(profile, "certifications", []) or []):
             score += 3
         return min(score, 100)
+
+    def _profile_to_dict(profile):
+        if not profile:
+            return None
+        return {
+            "full_name": profile.full_name,
+            "email": profile.email,
+            "phone": profile.phone,
+            "location": profile.location,
+            "linkedin_url": profile.linkedin_url,
+            "github_url": profile.github_url,
+            "portfolio_url": profile.portfolio_url,
+            "headline": profile.headline,
+            "summary": profile.summary,
+            "career_objective": profile.career_objective,
+            "education": [_row_to_dict(item) for item in profile.education],
+            "experience": [_row_to_dict(item) for item in profile.experience],
+            "projects": [_row_to_dict(item) for item in profile.projects],
+            "skills": [_row_to_dict(item) for item in profile.skills],
+            "certifications": [_row_to_dict(item) for item in profile.certifications],
+        }
+
+    @application.put("/api/profile")
+    def update_profile(req: _ProfileUpdateReq, payload: Dict = Depends(_require_auth), db: Session = Depends(get_db)):
+        from ai_career_platform.db.models import UserProfile
+        profile = db.query(UserProfile).filter(UserProfile.user_id == payload.get("sub")).first()
+        if not profile:
+            profile = UserProfile(id=f"profile_{uuid.uuid4().hex}", user_id=payload.get("sub"))
+            db.add(profile)
+        updates = req.model_dump(exclude_unset=True)
+        for field, value in updates.items():
+            setattr(profile, field, value)
+        profile.completion_score = _calculate_completion(profile)
+        db.commit()
+        db.refresh(profile)
+        return {"profile": _profile_to_dict(profile), "completeness": profile.completion_score, "onboarded": True}
+
 
     def _assert_profile_owner(profile_id: str, payload: Dict, db: Session):
         from ai_career_platform.db.models import UserProfile
