@@ -838,6 +838,33 @@ def create_app(overridden_settings=None) -> FastAPI:
             logger.error("market_trends error=%s", e)
             return {"source": [], "fetched_at": datetime.now(timezone.utc).isoformat(), "confidence": 0, "data": None, "error": "Market data service unavailable"}
 
+    @application.get("/api/market/salary")
+    def market_salary(role: str = "software engineer"):
+        from ai_career_platform.services.salary_extractor import SalaryExtractor
+        if not role:
+            return {"source": "salarybyrole.com", "fetched_at": datetime.now(timezone.utc).isoformat(), "confidence": 0, "data": None, "error": "Role parameter required"}
+        try:
+            extractor = SalaryExtractor()
+            result = extractor.get_salary_insights(role, "")
+            salaries = result.get("salaries", [])
+            if salaries:
+                return {
+                    "source": "salarybyrole.com",
+                    "fetched_at": datetime.now(timezone.utc).isoformat(),
+                    "confidence": 0.9,
+                    "data": {
+                        "role": result.get("role"),
+                        "location": result.get("location"),
+                        "currency": result.get("currency"),
+                        "salaries": salaries,
+                    },
+                    "error": None,
+                }
+            return {"source": "salarybyrole.com", "fetched_at": datetime.now(timezone.utc).isoformat(), "confidence": 0, "data": None, "error": "No salary data found"}
+        except Exception as e:
+            logger.error("market_salary error=%s", e)
+            return {"source": "salarybyrole.com", "fetched_at": datetime.now(timezone.utc).isoformat(), "confidence": 0, "data": None, "error": "Salary service unavailable"}
+
     # ---- Analytics ----
     class _AnalyticsEventReq(BaseModel):
         event_type: str = Field(min_length=1, max_length=100)
