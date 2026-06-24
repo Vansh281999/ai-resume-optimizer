@@ -1,4 +1,4 @@
-﻿import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
+﻿import { createContext, useContext, useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { login, signup, type AuthResponse, type User } from '../lib/api';
 import { useToast } from './ToastContext';
@@ -16,6 +16,8 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+const WARNING_TIME_MS = 60 * 1000;
 
 function readStoredAuth(): { user: User | null; token: string | null; rememberMe: boolean } {
   const storedUser = localStorage.getItem('career_user');
@@ -76,6 +78,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [rememberMe, setRememberMe] = useState<boolean>(() => readStoredAuth().rememberMe);
   const [isLoading, setIsLoading] = useState(false);
   const { addToast } = useToast();
+  const idleTimerRef = useRef<number | null>(null);
+  const warningTimerRef = useRef<number | null>(null);
+
+  const resetIdleTimer = useCallback(() => {
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
+    
+    idleTimerRef.current = window.setTimeout(() => {
+      if (token) {
+        addToast('Your session will expire due to inactivity.', 'info');
+        warningTimerRef.current = window.setTimeout(() => {
+          addToast('Session expired. Please sign in again.', 'info');
+          setToken(null);
+          setUser(null);
+          clearAuth();
+          window.location.href = '/login';
+        }, WARNING_TIME_MS);
+      }
+    }, IDLE_TIMEOUT_MS);
+  }, [token, addToast]);
+
+  useEffect(() => {
+    if (token) {
+      resetIdleTimer();
+    }
+    return () => {
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
+    };
+  }, [token, resetIdleTimer]);
+
+  useEffect(() => {
+    const activityEvents = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
+    const handleActivity = () => resetIdleTimer();
+    
+    activityEvents.forEach(event => document.addEventListener(event, handleActivity));
+    return () => activityEvents.forEach(event => document.removeEventListener(event, handleActivity));
+  }, [resetIdleTimer]);
 
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {

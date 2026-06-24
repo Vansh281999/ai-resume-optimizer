@@ -115,9 +115,10 @@ export function Settings() {
             <h3 className="text-xl font-black">Security</h3>
           </div>
           <div className="space-y-4">
-            <SettingRow icon={KeyRound} label="Session token" value="Stored as career_token in localStorage" />
-            <SettingRow icon={UserRound} label="User profile" value="Stored as career_user in localStorage" />
+            <SettingRow icon={KeyRound} label="Session token" value="sessionStorage (or localStorage if Remember Me)" />
+            <SettingRow icon={UserRound} label="User profile" value="Stored in session or local storage" />
             <SettingRow icon={Globe} label="API endpoint" value={API_BASE_URL} />
+            <SettingRow icon={ShieldCheck} label="Idle timeout" value="30 minutes of inactivity" />
           </div>
           <form onSubmit={handlePasswordChange} className="mt-6 space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-950">
             <p className="text-sm font-black text-slate-700 dark:text-slate-200">Change password</p>

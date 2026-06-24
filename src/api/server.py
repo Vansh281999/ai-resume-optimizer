@@ -13,11 +13,14 @@ from fastapi import FastAPI, HTTPException, Depends, status, UploadFile, File, R
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.responses import JSONResponse
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from pydantic import ValidationError as PydanticValidationError
 from jose import JWTError, jwt, ExpiredSignatureError
-import bcrypt
 import bcrypt
 from sqlalchemy.orm import Session
 
@@ -99,7 +102,10 @@ def create_app(overridden_settings=None) -> FastAPI:
         )
 
     limiter, has_rate_limit = _make_rate_limiter()
+    limiter = Limiter(key_func=get_remote_address)
     application = FastAPI(title="AI Career Intelligence Platform", version="2.0.0")
+    application.state.limiter = limiter
+    application.add_middleware(SlowAPIMiddleware)
 
     application.add_middleware(
         CORSMiddleware,
@@ -197,6 +203,11 @@ def create_app(overridden_settings=None) -> FastAPI:
     async def _validation_handler(request: Request, exc: PydanticValidationError) -> JSONResponse:
         rid = getattr(request.state, "request_id", "unknown")
         return JSONResponse(status_code=422, content={"detail": "Validation error", "errors": exc.errors(), "request_id": rid})
+
+    @application.exception_handler(RateLimitExceeded)
+    async def _rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
+        rid = getattr(request.state, "request_id", "unknown")
+        return JSONResponse(status_code=429, content={"detail": "Too many requests. Please try again later.", "request_id": rid})
 
     # ---- Auth ----
     class _LoginReq(BaseModel):
