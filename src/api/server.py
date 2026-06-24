@@ -101,7 +101,6 @@ def create_app(overridden_settings=None) -> FastAPI:
             "Generate: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
         )
 
-    limiter, has_rate_limit = _make_rate_limiter()
     limiter = Limiter(key_func=get_remote_address)
     application = FastAPI(title="AI Career Intelligence Platform", version="2.0.0")
     application.state.limiter = limiter
